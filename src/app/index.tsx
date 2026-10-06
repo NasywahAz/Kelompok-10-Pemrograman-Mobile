@@ -31,7 +31,36 @@ const COLORS = {
   border: '#E8EBE9',
 };
 
-// Data Dummy Kategori
+// Data Model Product (Task 1)
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+  location: string;
+  condition: string;
+  category: string;
+  image: string;
+  tag?: string | null;
+}
+
+// Interface Payload Data Produk Mentah
+interface RawProductPayload {
+  id: number;
+  name: string;
+  price: number;
+  location: string;
+  condition: string;
+  category: string;
+  image: string;
+  tag?: string | null;
+}
+
+// Helper untuk format Rupiah pada UI
+const formatRupiah = (price: number): string => {
+  return `Rp${price.toLocaleString('id-ID')}`;
+};
+
+// Data Kategori Asli Preloved (Week 2)
 const CATEGORIES = [
   { id: '1', name: 'Elektronik', icon: '💻' },
   { id: '2', name: 'Fashion', icon: '👕' },
@@ -42,12 +71,12 @@ const CATEGORIES = [
   { id: '7', name: 'Lainnya', icon: '📦' },
 ];
 
-// Data Dummy Produk
-const DUMMY_PRODUCTS = [
+// Data mentah 6 produk asli Preloved dalam bentuk JSON String (Simulasi Data Source / Payload REST API)
+const RAW_PRELOVED_PRODUCTS_JSON = JSON.stringify([
   {
-    id: '1',
+    id: 1,
     name: 'Laptop ASUS VivoBook',
-    price: 'Rp4.500.000',
+    price: 4500000,
     location: 'Malang',
     condition: 'Bekas - Sangat Baik',
     image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=500&q=80',
@@ -55,9 +84,9 @@ const DUMMY_PRODUCTS = [
     tag: null,
   },
   {
-    id: '2',
+    id: 2,
     name: 'iPhone 12 128GB',
-    price: 'Rp5.200.000',
+    price: 5200000,
     location: 'Malang',
     condition: 'Bekas - Baik',
     image: 'https://images.unsplash.com/photo-1605236453806-6ff36851218e?w=500&q=80',
@@ -65,9 +94,9 @@ const DUMMY_PRODUCTS = [
     tag: null,
   },
   {
-    id: '3',
+    id: 3,
     name: 'Kamera Canon EOS M10',
-    price: 'Rp3.100.000',
+    price: 3100000,
     location: 'Batu',
     condition: 'Bekas - Sangat Baik',
     image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&q=80',
@@ -75,9 +104,9 @@ const DUMMY_PRODUCTS = [
     tag: null,
   },
   {
-    id: '4',
+    id: 4,
     name: 'Hoodie Oversize',
-    price: 'Rp120.000',
+    price: 120000,
     location: 'Malang',
     condition: 'Bekas - Baik',
     image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80',
@@ -85,9 +114,9 @@ const DUMMY_PRODUCTS = [
     tag: 'Promo',
   },
   {
-    id: '5',
+    id: 5,
     name: 'Meja Belajar Minimalis',
-    price: 'Rp350.000',
+    price: 350000,
     location: 'Malang',
     condition: 'Bekas - Baik',
     image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&q=80',
@@ -95,16 +124,16 @@ const DUMMY_PRODUCTS = [
     tag: null,
   },
   {
-    id: '6',
+    id: 6,
     name: 'Headphone Wireless',
-    price: 'Rp275.000',
+    price: 275000,
     location: 'Malang',
     condition: 'Bekas - Sangat Baik',
     image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80',
     category: 'Elektronik',
     tag: null,
   },
-];
+]);
 
 // Pure React Native Icons
 function SearchIcon({ size = 16, color = COLORS.mutedText }) {
@@ -307,6 +336,47 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  // State untuk menyimpan Product sesuai Data Model Task 1 & Task 2
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Task 2: Alur Data (Data → JSON → Parse/Mapping → Product Model → UI)
+  const loadPrelovedProducts = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      // 1. Data JSON diterima (mensimulasikan penerimaan payload response JSON)
+      const rawData: RawProductPayload[] = JSON.parse(RAW_PRELOVED_PRODUCTS_JSON);
+
+      // 2. Mapping JSON ke Data Model Product (Task 1)
+      const mappedProducts: Product[] = rawData.map((item: RawProductPayload) => ({
+        id: Number(item.id),
+        name: String(item.name),
+        price: Number(item.price),
+        location: String(item.location),
+        condition: String(item.condition),
+        category: String(item.category),
+        image: String(item.image),
+        tag: item.tag ?? null,
+      }));
+
+      // 3. Simpan data hasil mapping ke state untuk diteruskan ke UI
+      setProducts(mappedProducts);
+    } catch (error) {
+      console.error('Gagal memuat produk:', error);
+      setErrorMessage('Gagal memuat produk.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Trigger alur data saat Home dibuka
+  useEffect(() => {
+    loadPrelovedProducts();
+  }, []);
+
   // Authentication Route Guard: Mengecek session authentication saat aplikasi dibuka
   useEffect(() => {
     let isMounted = true;
@@ -365,7 +435,7 @@ export default function HomeScreen() {
   const cardWidth = Math.floor((currentWidth - PADDING * 2 - GAP) / 2);
 
   // Filter produk berdasarkan pencarian dan kategori aktif (opsional jika dipilih)
-  const filteredProducts = DUMMY_PRODUCTS.filter((product) => {
+  const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -462,62 +532,89 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {/* 1.4 PRODUCT CARD GRID (2 KOLOM) */}
-          <View
-            style={styles.productGrid}
-            onLayout={(e) => {
-              const w = e.nativeEvent.layout.width;
-              if (w > 0 && Math.abs(w - containerWidth) > 1) {
-                setContainerWidth(w);
-              }
-            }}
-          >
-            {filteredProducts.map((item) => (
+          {/* Status Loading */}
+          {isLoading && (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator size="small" color={COLORS.primaryGreen} />
+              <Text style={styles.loadingText}>Memuat produk...</Text>
+            </View>
+          )}
+
+          {/* Status Error */}
+          {!isLoading && errorMessage && (
+            <View style={styles.stateContainer}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
               <TouchableOpacity
-                key={item.id}
-                style={[styles.productCard, { width: cardWidth }]}
-                activeOpacity={0.85}
-                onPress={() =>
-                  Alert.alert(item.name, `Harga: ${item.price}\nLokasi: ${item.location}\nKondisi: ${item.condition}`)
-                }
+                style={styles.retryButton}
+                activeOpacity={0.7}
+                onPress={loadPrelovedProducts}
               >
-                {/* Gambar Produk */}
-                <View style={styles.cardImageContainer}>
-                  <Image source={{ uri: item.image }} style={styles.cardImage} />
-                  {/* Accent Red Badge jika ada Promo/Highlight */}
-                  {item.tag && (
-                    <View style={styles.accentBadge}>
-                      <Text style={styles.accentBadgeText}>{item.tag}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Detail Produk */}
-                <View style={styles.cardDetails}>
-                  {/* Nama Produk (maksimal 2 baris) */}
-                  <Text style={styles.productName} numberOfLines={2}>
-                    {item.name}
-                  </Text>
-
-                  {/* Harga (Informasi Paling Menonjol) */}
-                  <Text style={styles.productPrice}>{item.price}</Text>
-
-                  {/* Kondisi Badge */}
-                  <View style={styles.conditionBadge}>
-                    <Text style={styles.conditionBadgeText}>{item.condition}</Text>
-                  </View>
-
-                  {/* Lokasi */}
-                  <View style={styles.locationRow}>
-                    <Text style={styles.locationPin}>📍</Text>
-                    <Text style={styles.locationText}>{item.location}</Text>
-                  </View>
-                </View>
+                <Text style={styles.retryButtonText}>Coba Lagi</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          )}
 
-          {filteredProducts.length === 0 && (
+          {/* 1.4 PRODUCT CARD GRID (2 KOLOM) */}
+          {!isLoading && !errorMessage && (
+            <View
+              style={styles.productGrid}
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                if (w > 0 && Math.abs(w - containerWidth) > 1) {
+                  setContainerWidth(w);
+                }
+              }}
+            >
+              {filteredProducts.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.productCard, { width: cardWidth }]}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    Alert.alert(
+                      item.name,
+                      `Harga: ${formatRupiah(item.price)}\nLokasi: ${item.location}\nKondisi: ${item.condition}`
+                    )
+                  }
+                >
+                  {/* Gambar Produk */}
+                  <View style={styles.cardImageContainer}>
+                    <Image source={{ uri: item.image }} style={styles.cardImage} />
+                    {/* Accent Red Badge jika ada Promo/Highlight */}
+                    {item.tag && (
+                      <View style={styles.accentBadge}>
+                        <Text style={styles.accentBadgeText}>{item.tag}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Detail Produk */}
+                  <View style={styles.cardDetails}>
+                    {/* Nama Produk (maksimal 2 baris) */}
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+
+                    {/* Harga (Informasi Paling Menonjol) */}
+                    <Text style={styles.productPrice}>{formatRupiah(item.price)}</Text>
+
+                    {/* Kondisi Badge */}
+                    <View style={styles.conditionBadge}>
+                      <Text style={styles.conditionBadgeText}>{item.condition}</Text>
+                    </View>
+
+                    {/* Lokasi */}
+                    <View style={styles.locationRow}>
+                      <Text style={styles.locationPin}>📍</Text>
+                      <Text style={styles.locationText}>{item.location}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {!isLoading && !errorMessage && filteredProducts.length === 0 && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>Tidak ada produk ditemukan.</Text>
             </View>
@@ -908,5 +1005,33 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  stateContainer: {
+    paddingVertical: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 13,
+    color: COLORS.mutedText,
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: COLORS.accentRed,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: COLORS.lightGreen,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primaryGreen,
   },
 });
