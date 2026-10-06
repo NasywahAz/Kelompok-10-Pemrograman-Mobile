@@ -56,15 +56,19 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Membaca session authentication dari SecureStore untuk mendeteksi sesi yang tersimpan
+  // Membaca session authentication dari SecureStore untuk mendeteksi status sesi
   useEffect(() => {
     const checkExistingSession = async () => {
       try {
         const sessionString = await SecureStore.getItemAsync(AUTH_SESSION_KEY);
         if (sessionString) {
           const session: AuthSession = JSON.parse(sessionString);
-          if (session.isLoggedIn && session.email) {
-            // Mengisi field email dengan akun yang tersimpan sebelumnya untuk kemudahan pengguna
+          if (session && session.isLoggedIn === true) {
+            // Jika sudah memiliki session aktif, langsung arahkan ke Home
+            router.replace('/');
+            return;
+          }
+          if (session && session.email) {
             setEmail(session.email);
           }
         }
@@ -101,11 +105,33 @@ export default function LoginScreen() {
       return;
     }
 
-    // Pengecekan dummy credential
+    // Pengecekan kredensial (dummy credential atau akun yang didaftarkan lewat register.tsx)
+    let isValid = false;
     if (
       trimmedEmail.toLowerCase() === DUMMY_CREDENTIALS.email.toLowerCase() &&
       password === DUMMY_CREDENTIALS.password
     ) {
+      isValid = true;
+    } else {
+      try {
+        const registeredUserStr = await SecureStore.getItemAsync('preloved_registered_user');
+        if (registeredUserStr) {
+          const registeredUser = JSON.parse(registeredUserStr);
+          if (
+            registeredUser &&
+            registeredUser.email &&
+            registeredUser.email.toLowerCase() === trimmedEmail.toLowerCase() &&
+            registeredUser.password === password
+          ) {
+            isValid = true;
+          }
+        }
+      } catch (error) {
+        console.error('Gagal memeriksa akun terdaftar dari SecureStore:', error);
+      }
+    }
+
+    if (isValid) {
       try {
         // Simpan status/session authentication secara aman menggunakan expo-secure-store
         // Password TIDAK disimpan ke penyimpanan biasa atau ke session

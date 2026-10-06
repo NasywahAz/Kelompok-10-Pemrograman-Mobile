@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 // Color Palette konsisten dengan Home Week 2
 const COLORS = {
@@ -30,7 +31,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!name.trim()) {
       Alert.alert('Perhatian', 'Nama lengkap wajib diisi.');
       return;
@@ -49,6 +50,20 @@ export default function RegisterScreen() {
     if (password.length < 6) {
       Alert.alert('Perhatian', 'Password minimal 6 karakter.');
       return;
+    }
+
+    try {
+      const registeredUser = {
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      };
+      await SecureStore.setItemAsync(
+        'preloved_registered_user',
+        JSON.stringify(registeredUser)
+      );
+    } catch (error) {
+      console.error('Gagal menyimpan pendaftaran ke SecureStore:', error);
     }
 
     // Registrasi berhasil (tahap awal sebelum integrasi Secure Storage)

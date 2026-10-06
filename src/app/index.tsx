@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { Redirect, router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  Image,
-  ScrollView,
   TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Alert,
-  Platform,
   useWindowDimensions,
-  ActivityIndicator,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { API_PRODUCTS_URL } from '../constants/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -71,69 +72,7 @@ const CATEGORIES = [
   { id: '7', name: 'Lainnya', icon: '📦' },
 ];
 
-// Data mentah 6 produk asli Preloved dalam bentuk JSON String (Simulasi Data Source / Payload REST API)
-const RAW_PRELOVED_PRODUCTS_JSON = JSON.stringify([
-  {
-    id: 1,
-    name: 'Laptop ASUS VivoBook',
-    price: 4500000,
-    location: 'Malang',
-    condition: 'Bekas - Sangat Baik',
-    image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=500&q=80',
-    category: 'Elektronik',
-    tag: null,
-  },
-  {
-    id: 2,
-    name: 'iPhone 12 128GB',
-    price: 5200000,
-    location: 'Malang',
-    condition: 'Bekas - Baik',
-    image: 'https://images.unsplash.com/photo-1605236453806-6ff36851218e?w=500&q=80',
-    category: 'Elektronik',
-    tag: null,
-  },
-  {
-    id: 3,
-    name: 'Kamera Canon EOS M10',
-    price: 3100000,
-    location: 'Batu',
-    condition: 'Bekas - Sangat Baik',
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&q=80',
-    category: 'Elektronik',
-    tag: null,
-  },
-  {
-    id: 4,
-    name: 'Hoodie Oversize',
-    price: 120000,
-    location: 'Malang',
-    condition: 'Bekas - Baik',
-    image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80',
-    category: 'Fashion',
-    tag: 'Promo',
-  },
-  {
-    id: 5,
-    name: 'Meja Belajar Minimalis',
-    price: 350000,
-    location: 'Malang',
-    condition: 'Bekas - Baik',
-    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&q=80',
-    category: 'Rumah',
-    tag: null,
-  },
-  {
-    id: 6,
-    name: 'Headphone Wireless',
-    price: 275000,
-    location: 'Malang',
-    condition: 'Bekas - Sangat Baik',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80',
-    category: 'Elektronik',
-    tag: null,
-  },
-]);
+// REST API Endpoint: API_PRODUCTS_URL (GET /api/products)
 
 // Pure React Native Icons
 function SearchIcon({ size = 16, color = COLORS.mutedText }) {
@@ -341,16 +280,24 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Task 2: Alur Data (Data → JSON → Parse/Mapping → Product Model → UI)
+  // Week 4 Task 2: Alur Data (fetch(API_URL) → response.json() → RawProductPayload[] → mapping → Product[] → setProducts() → UI)
   const loadPrelovedProducts = async () => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
-      // 1. Data JSON diterima (mensimulasikan penerimaan payload response JSON)
-      const rawData: RawProductPayload[] = JSON.parse(RAW_PRELOVED_PRODUCTS_JSON);
+      // 1. Ambil data dari REST API endpoint
+      const response = await fetch(API_PRODUCTS_URL);
 
-      // 2. Mapping JSON ke Data Model Product (Task 1)
+      // 2. Pengecekan response.ok
+      if (!response.ok) {
+        throw new Error(`Gagal memuat produk dari server (status ${response.status})`);
+      }
+
+      // 3. Parse JSON response menjadi RawProductPayload[]
+      const rawData: RawProductPayload[] = await response.json();
+
+      // 4. Mapping data mentah ke Data Model Product (Task 1 & Task 2)
       const mappedProducts: Product[] = rawData.map((item: RawProductPayload) => ({
         id: Number(item.id),
         name: String(item.name),
@@ -362,20 +309,15 @@ export default function HomeScreen() {
         tag: item.tag ?? null,
       }));
 
-      // 3. Simpan data hasil mapping ke state untuk diteruskan ke UI
+      // 5. Simpan hasil mapping ke state untuk ditampilkan ke UI (Task 3)
       setProducts(mappedProducts);
     } catch (error) {
-      console.error('Gagal memuat produk:', error);
+      console.error('Gagal memuat produk dari REST API:', error);
       setErrorMessage('Gagal memuat produk.');
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Trigger alur data saat Home dibuka
-  useEffect(() => {
-    loadPrelovedProducts();
-  }, []);
 
   // Authentication Route Guard: Mengecek session authentication saat aplikasi dibuka
   useEffect(() => {
@@ -389,12 +331,14 @@ export default function HomeScreen() {
           if (session && session.isLoggedIn === true) {
             if (isMounted) {
               setAuthStatus('authenticated');
+              // Hanya muat data produk setelah user terverifikasi login
+              loadPrelovedProducts();
             }
             return;
           }
         }
 
-        // Jika session tidak ada atau user belum login
+        // Jika session tidak ada, kosong, tidak valid, atau isLoggedIn !== true
         if (isMounted) {
           setAuthStatus('unauthenticated');
           router.replace('/login');
@@ -415,9 +359,9 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Tampilkan loading screen sederhana di tengah layar saat memeriksa session
+  // Tampilkan loading screen di tengah layar saat memeriksa session
   // agar pengguna tidak langsung melihat Home terlebih dahulu sebelum login
-  if (authStatus !== 'authenticated') {
+  if (authStatus === 'checking') {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primaryGreen} />
@@ -425,9 +369,37 @@ export default function HomeScreen() {
     );
   }
 
-  // Navigasi Alert untuk menu selain Home
+  // Jika unauthenticated, arahkan ke /login dan jangan render Home
+  if (authStatus === 'unauthenticated') {
+    return <Redirect href="/login" />;
+  }
+
+  // Navigasi Alert untuk menu selain Home, dengan opsi Logout pada menu Profil
   const handleNavPress = (menuName: string) => {
-    Alert.alert('Info', 'Fitur ini akan tersedia pada tahap berikutnya.');
+    if (menuName === 'Profil') {
+      Alert.alert(
+        'Sesi Akun',
+        'Kelola sesi akun Anda di Preloved.',
+        [
+          { text: 'Batal', style: 'cancel' },
+          {
+            text: 'Keluar (Logout)',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await SecureStore.deleteItemAsync('preloved_auth_session');
+              } catch (e) {
+                console.error('Gagal menghapus session:', e);
+              }
+              setAuthStatus('unauthenticated');
+              router.replace('/login');
+            },
+          },
+        ]
+      );
+      return;
+    }
+    Alert.alert('Info', `Fitur ${menuName} akan tersedia pada tahap berikutnya.`);
   };
 
   // Perhitungan lebar card responsif 2 kolom
@@ -627,7 +599,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.7}
-          onPress={() => {}}
+          onPress={() => { }}
         >
           <HomeNavIcon active={true} />
           <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
