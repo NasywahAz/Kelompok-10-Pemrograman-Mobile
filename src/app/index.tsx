@@ -12,8 +12,10 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -296,27 +298,62 @@ function ProfileNavIcon({ active }: NavIconProps) {
   );
 }
 
+type AuthStatus = 'checking' | 'unauthenticated' | 'authenticated';
+
 export default function HomeScreen() {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const { width: windowWidth } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(windowWidth || SCREEN_WIDTH);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Membaca session authentication dari SecureStore saat Home dibuka
+  // Authentication Route Guard: Mengecek session authentication saat aplikasi dibuka
   useEffect(() => {
+    let isMounted = true;
+
     const checkAuthSession = async () => {
       try {
         const sessionString = await SecureStore.getItemAsync('preloved_auth_session');
         if (sessionString) {
-          // Session aktif terkonfirmasi di Home
+          const session = JSON.parse(sessionString);
+          if (session && session.isLoggedIn === true) {
+            if (isMounted) {
+              setAuthStatus('authenticated');
+            }
+            return;
+          }
+        }
+
+        // Jika session tidak ada atau user belum login
+        if (isMounted) {
+          setAuthStatus('unauthenticated');
+          router.replace('/login');
         }
       } catch (error) {
         console.error('Gagal membaca session di Home:', error);
+        if (isMounted) {
+          setAuthStatus('unauthenticated');
+          router.replace('/login');
+        }
       }
     };
 
     checkAuthSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Tampilkan loading screen sederhana di tengah layar saat memeriksa session
+  // agar pengguna tidak langsung melihat Home terlebih dahulu sebelum login
+  if (authStatus !== 'authenticated') {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primaryGreen} />
+      </SafeAreaView>
+    );
+  }
 
   // Navigasi Alert untuk menu selain Home
   const handleNavPress = (menuName: string) => {
@@ -865,5 +902,11 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: COLORS.white,
     borderRadius: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
