@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import {
   View,
   Text,
@@ -300,6 +301,22 @@ export default function HomeScreen() {
   const [containerWidth, setContainerWidth] = useState(windowWidth || SCREEN_WIDTH);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Membaca session authentication dari SecureStore saat Home dibuka
+  useEffect(() => {
+    const checkAuthSession = async () => {
+      try {
+        const sessionString = await SecureStore.getItemAsync('preloved_auth_session');
+        if (sessionString) {
+          // Session aktif terkonfirmasi di Home
+        }
+      } catch (error) {
+        console.error('Gagal membaca session di Home:', error);
+      }
+    };
+
+    checkAuthSession();
+  }, []);
 
   // Navigasi Alert untuk menu selain Home
   const handleNavPress = (menuName: string) => {

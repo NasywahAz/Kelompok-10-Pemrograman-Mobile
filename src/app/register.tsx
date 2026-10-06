@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 // Color Palette konsisten dengan Home Week 2
 const COLORS = {
@@ -51,12 +52,13 @@ export default function RegisterScreen() {
     }
 
     // Registrasi berhasil (tahap awal sebelum integrasi Secure Storage)
-    Alert.alert('Berhasil', 'Registrasi berhasil');
+    Alert.alert('Berhasil', 'Registrasi berhasil', [
+      { text: 'OK', onPress: () => router.push('/login') },
+    ]);
   };
 
   const handleLoginPress = () => {
-    // Navigasi aman sementara sebelum login.tsx dibuat pada tahap berikutnya
-    Alert.alert('Info', 'Halaman Login akan tersedia pada tahap berikutnya.');
+    router.push('/login');
   };
 
   return (
