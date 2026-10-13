@@ -3,9 +3,25 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+// Load environment variables dari file .env jika tersedia (Node.js 20.6+)
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile();
+  } catch {
+    // Lewati jika file .env belum dibuat
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Konfigurasi JWT Secret dari environment variable
+const JWT_SECRET = process.env.JWT_SECRET || 'preloved_jwt_secret_key_default';
+if (!process.env.JWT_SECRET) {
+  console.warn('[Warning] Environment variable JWT_SECRET belum diatur. Menggunakan default secret untuk development.');
+}
 
 // Path berkas penyimpanan data pengguna (users.json)
 const DATA_DIR = path.join(__dirname, 'data');
@@ -223,9 +239,87 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Endpoint POST /api/auth/login untuk autentikasi pengguna menggunakan JWT
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    // 1. Validasi input wajib ada dan bertipe string
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email wajib diisi.',
+      });
+    }
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Password wajib diisi.',
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 2. Cari akun pengguna berdasarkan email (case-insensitive)
+    const users = readUsers();
+    const user = users.find(
+      (u) => u.email && u.email.toLowerCase() === normalizedEmail
+    );
+
+    // 3. Jika pengguna tidak ditemukan, kembalikan 401 Unauthorized tanpa token
+    if (!user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Email atau password salah.',
+      });
+    }
+
+    // 4. Verifikasi password menggunakan bcrypt.compare terhadap password hash
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    // 5. Jika password tidak cocok, kembalikan 401 Unauthorized tanpa token
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Email atau password salah.',
+      });
+    }
+
+    // 6. Buat payload JWT hanya berisi identitas pengguna yang aman (tanpa password/hash)
+    const tokenPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    };
+
+    // 7. Buat token JWT dengan masa berlaku 1 jam (1h) menggunakan secret dari environment variable
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' });
+
+    // 8. Kembalikan respons berhasil beserta token dan data pengguna yang aman
+    return res.status(200).json({
+      status: 'success',
+      message: 'Login berhasil.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error('[Login Error] Gagal memproses login:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Terjadi kesalahan pada server saat memproses login.',
+    });
+  }
+});
+
 // Jalankan server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Preloved REST API server running on http://localhost:${PORT}`);
   console.log(`Endpoint: http://localhost:${PORT}/api/products`);
   console.log(`Endpoint Register: http://localhost:${PORT}/api/auth/register`);
+  console.log(`Endpoint Login: http://localhost:${PORT}/api/auth/login`);
 });
