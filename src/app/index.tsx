@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import { getAuthSession } from '../utils/authStorage';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -325,17 +325,14 @@ export default function HomeScreen() {
 
     const checkAuthSession = async () => {
       try {
-        const sessionString = await SecureStore.getItemAsync('preloved_auth_session');
-        if (sessionString) {
-          const session = JSON.parse(sessionString);
-          if (session && session.isLoggedIn === true) {
-            if (isMounted) {
-              setAuthStatus('authenticated');
-              // Hanya muat data produk setelah user terverifikasi login
-              loadPrelovedProducts();
-            }
-            return;
+        const session = await getAuthSession();
+        if (session && session.isLoggedIn === true) {
+          if (isMounted) {
+            setAuthStatus('authenticated');
+            // Hanya muat data produk setelah user terverifikasi login
+            loadPrelovedProducts();
           }
+          return;
         }
 
         // Jika session tidak ada, kosong, tidak valid, atau isLoggedIn !== true
@@ -374,29 +371,10 @@ export default function HomeScreen() {
     return <Redirect href="/login" />;
   }
 
-  // Navigasi Alert untuk menu selain Home, dengan opsi Logout pada menu Profil
+  // Navigasi untuk menu navigasi bawah
   const handleNavPress = (menuName: string) => {
     if (menuName === 'Profil') {
-      Alert.alert(
-        'Sesi Akun',
-        'Kelola sesi akun Anda di Preloved.',
-        [
-          { text: 'Batal', style: 'cancel' },
-          {
-            text: 'Keluar (Logout)',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await SecureStore.deleteItemAsync('preloved_auth_session');
-              } catch (e) {
-                console.error('Gagal menghapus session:', e);
-              }
-              setAuthStatus('unauthenticated');
-              router.replace('/login');
-            },
-          },
-        ]
-      );
+      router.push('/profil');
       return;
     }
     Alert.alert('Info', `Fitur ${menuName} akan tersedia pada tahap berikutnya.`);

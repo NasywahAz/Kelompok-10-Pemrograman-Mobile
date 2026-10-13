@@ -12,7 +12,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import {
+  AUTH_SESSION_KEY,
+  AuthSession,
+  deleteAuthSession,
+  getAuthSession,
+  getRegisteredUser,
+  saveAuthSession,
+} from '../utils/authStorage';
+
+// Re-export untuk kompatibilitas jika dipanggil modul lain
+export { AUTH_SESSION_KEY, deleteAuthSession };
+export type { AuthSession };
 
 // Color Palette konsisten dengan Home Week 2 dan Register Week 3
 const COLORS = {
@@ -26,29 +37,11 @@ const COLORS = {
   border: '#E8EBE9',
 };
 
-// Key untuk menyimpan session authentication di Secure Storage
-export const AUTH_SESSION_KEY = 'preloved_auth_session';
-
-// Tipe data session authentication (tanpa plaintext password)
-export interface AuthSession {
-  isLoggedIn: boolean;
-  email: string;
-  loginAt: string;
-}
-
 // Dummy Credential untuk demonstrasi Week 3
 const DUMMY_CREDENTIALS = {
+  name: 'Pengguna Preloved',
   email: 'test@preloved.com',
   password: '123456',
-};
-
-// Struktur fungsi deleteItemAsync yang disiapkan untuk tahap Logout berikutnya
-export const deleteAuthSession = async (): Promise<void> => {
-  try {
-    await SecureStore.deleteItemAsync(AUTH_SESSION_KEY);
-  } catch (error) {
-    console.error('Gagal menghapus session:', error);
-  }
 };
 
 export default function LoginScreen() {
@@ -56,24 +49,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Membaca session authentication dari SecureStore untuk mendeteksi status sesi
+  // Membaca session authentication dari storage untuk mendeteksi status sesi
   useEffect(() => {
     const checkExistingSession = async () => {
       try {
-        const sessionString = await SecureStore.getItemAsync(AUTH_SESSION_KEY);
-        if (sessionString) {
-          const session: AuthSession = JSON.parse(sessionString);
-          if (session && session.isLoggedIn === true) {
+        const session = await getAuthSession();
+        if (session) {
+          if (session.isLoggedIn === true) {
             // Jika sudah memiliki session aktif, langsung arahkan ke Home
             router.replace('/');
             return;
           }
-          if (session && session.email) {
+          if (session.email) {
             setEmail(session.email);
           }
         }
       } catch (error) {
-        console.error('Gagal membaca sesi authentication dari SecureStore:', error);
+        console.error('Gagal membaca sesi authentication dari storage:', error);
       }
     };
 
@@ -107,44 +99,44 @@ export default function LoginScreen() {
 
     // Pengecekan kredensial (dummy credential atau akun yang didaftarkan lewat register.tsx)
     let isValid = false;
+    let userName = '';
+
     if (
       trimmedEmail.toLowerCase() === DUMMY_CREDENTIALS.email.toLowerCase() &&
       password === DUMMY_CREDENTIALS.password
     ) {
       isValid = true;
+      userName = DUMMY_CREDENTIALS.name;
     } else {
       try {
-        const registeredUserStr = await SecureStore.getItemAsync('preloved_registered_user');
-        if (registeredUserStr) {
-          const registeredUser = JSON.parse(registeredUserStr);
-          if (
-            registeredUser &&
-            registeredUser.email &&
-            registeredUser.email.toLowerCase() === trimmedEmail.toLowerCase() &&
-            registeredUser.password === password
-          ) {
-            isValid = true;
-          }
+        const registeredUser = await getRegisteredUser();
+        if (
+          registeredUser &&
+          registeredUser.email &&
+          registeredUser.email.toLowerCase() === trimmedEmail.toLowerCase() &&
+          registeredUser.password === password
+        ) {
+          isValid = true;
+          userName = registeredUser.name;
         }
       } catch (error) {
-        console.error('Gagal memeriksa akun terdaftar dari SecureStore:', error);
+        console.error('Gagal memeriksa akun terdaftar dari storage:', error);
       }
     }
 
     if (isValid) {
       try {
-        // Simpan status/session authentication secara aman menggunakan expo-secure-store
-        // Password TIDAK disimpan ke penyimpanan biasa atau ke session
-        const sessionData: AuthSession = {
-          isLoggedIn: true,
-          email: trimmedEmail,
-          loginAt: new Date().toISOString(),
-        };
+        // Simpan status/session authentication secara aman dan kompatibel (Web: localStorage, Mobile: SecureStore)
+        // Password TIDAK disimpan ke session
+        await saveAuthSession(trimmedEmail, userName);
 
-        await SecureStore.setItemAsync(
-          AUTH_SESSION_KEY,
-          JSON.stringify(sessionData)
-        );
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && window.alert) {
+            window.alert('Login berhasil');
+          }
+          router.replace('/');
+          return;
+        }
 
         Alert.alert('Login berhasil', 'Login berhasil', [
           {
@@ -153,7 +145,7 @@ export default function LoginScreen() {
           },
         ]);
       } catch (error) {
-        console.error('Gagal menyimpan session ke SecureStore:', error);
+        console.error('Gagal menyimpan session ke storage:', error);
         Alert.alert('Error', 'Gagal menyimpan session authentication.');
       }
     } else {
