@@ -1,0 +1,16 @@
+[
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwibmFtZSI6IlJhaGF5dSIsImVtYWlsIjoicmFoYXl1QGV4YW1wbGUuY29tIiwiaWF0IjoxNzkyNDY4MTcxLCJleHAiOjE3OTI0NzE3NzF9.7LEJ42DHQBpUwP4ENgmfEF7qwNZOD9UjTKg3zvgatjI",
+    "userId": 2,
+    "email": "rahayu@example.com",
+    "expiresAt": "2026-10-20T04:49:31.000Z",
+    "revokedAt": "2026-10-20T04:40:36.035Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0Nzk5MzUsImV4cCI6MTc5MjQ4MzUzNX0.LZLORQeDw_pUcq3p4u1Wdb70MKUtIOPvQQkm30fa9WQ",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T08:05:35.000Z",
+    "revokedAt": "2026-10-20T07:06:41.441Z"
+  }
+]

@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -17,9 +18,9 @@ import {
   AuthSession,
   deleteAuthSession,
   getAuthSession,
-  getRegisteredUser,
   saveAuthSession,
 } from '../utils/authStorage';
+import { getApiBaseUrl } from '../constants/api';
 
 // Re-export untuk kompatibilitas jika dipanggil modul lain
 export { AUTH_SESSION_KEY, deleteAuthSession };
@@ -37,17 +38,11 @@ const COLORS = {
   border: '#E8EBE9',
 };
 
-// Dummy Credential untuk demonstrasi Week 3
-const DUMMY_CREDENTIALS = {
-  name: 'Pengguna Preloved',
-  email: 'test@preloved.com',
-  password: '123456',
-};
-
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Membaca session authentication dari storage untuk mendeteksi status sesi
   useEffect(() => {
@@ -97,38 +92,43 @@ export default function LoginScreen() {
       return;
     }
 
-    // Pengecekan kredensial (dummy credential atau akun yang didaftarkan lewat register.tsx)
-    let isValid = false;
-    let userName = '';
-
-    if (
-      trimmedEmail.toLowerCase() === DUMMY_CREDENTIALS.email.toLowerCase() &&
-      password === DUMMY_CREDENTIALS.password
-    ) {
-      isValid = true;
-      userName = DUMMY_CREDENTIALS.name;
-    } else {
-      try {
-        const registeredUser = await getRegisteredUser();
-        if (
-          registeredUser &&
-          registeredUser.email &&
-          registeredUser.email.toLowerCase() === trimmedEmail.toLowerCase() &&
-          registeredUser.password === password
-        ) {
-          isValid = true;
-          userName = registeredUser.name;
-        }
-      } catch (error) {
-        console.error('Gagal memeriksa akun terdaftar dari storage:', error);
-      }
+    if (isLoading) {
+      return;
     }
 
-    if (isValid) {
+    setIsLoading(true);
+
+    try {
+      const loginUrl = `${getApiBaseUrl()}/api/auth/login`;
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+        }),
+      });
+
+      let responseData: any = null;
       try {
-        // Simpan status/session authentication secara aman dan kompatibel (Web: localStorage, Mobile: SecureStore)
+        responseData = await response.json();
+      } catch {
+        // Jika response bukan JSON valid
+      }
+
+      if (response.ok && responseData?.token && responseData?.user) {
+        const { token, user } = responseData;
+
+        // Validasi tipe data token dan user dari respons backend
+        if (typeof token !== 'string' || !token.trim() || !user.email) {
+          throw new Error('Format respons autentikasi tidak valid dari server.');
+        }
+
+        // Simpan sesi autentikasi dengan urutan argumen: saveAuthSession(user.email, user.name, token)
         // Password TIDAK disimpan ke session
-        await saveAuthSession(trimmedEmail, userName);
+        await saveAuthSession(user.email, user.name, token);
 
         if (Platform.OS === 'web') {
           if (typeof window !== 'undefined' && window.alert) {
@@ -144,13 +144,24 @@ export default function LoginScreen() {
             onPress: () => router.replace('/'),
           },
         ]);
-      } catch (error) {
-        console.error('Gagal menyimpan session ke storage:', error);
-        Alert.alert('Error', 'Gagal menyimpan session authentication.');
+      } else {
+        // Ambil pesan error dari respons backend jika tersedia
+        const backendMessage =
+          typeof responseData?.message === 'string' && responseData.message.trim()
+            ? responseData.message.trim()
+            : 'Email atau password salah.';
+
+        setErrorMessage(backendMessage);
+        Alert.alert('Gagal Masuk', backendMessage);
       }
-    } else {
-      setErrorMessage('Email atau password salah.');
-      Alert.alert('Gagal Masuk', 'Email atau password salah.');
+    } catch (error) {
+      console.error('[Login] Terjadi kesalahan saat menghubungi server:', error);
+      const networkErrorMessage =
+        'Tidak dapat terhubung ke server. Pastikan server backend aktif dan koneksi tersedia.';
+      setErrorMessage(networkErrorMessage);
+      Alert.alert('Koneksi Gagal', networkErrorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -234,11 +245,16 @@ export default function LoginScreen() {
 
             {/* Tombol Masuk */}
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, isLoading && { opacity: 0.7 }]}
               activeOpacity={0.8}
               onPress={handleLogin}
+              disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>Masuk</Text>
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.loginButtonText}>Masuk</Text>
+              )}
             </TouchableOpacity>
 
             {/* Teks Belum punya akun? Daftar */}

@@ -5,5 +5,26 @@
     "email": "nasywah@example.com",
     "password": "$2b$10$TigCOOVVmadXAPPpeY1ZjOdV/VYQjP8L6SRrlDPeEBNFUyMct2J0S",
     "createdAt": "2026-10-13T10:01:48.499Z"
+  },
+  {
+    "id": 2,
+    "name": "Rahayu",
+    "email": "rahayu@example.com",
+    "password": "$2b$10$ts0MG2cbPNuxFlWlMaO5yeKqsl.GQZg97o0JRbOfXUWO5nS1EGXFq",
+    "createdAt": "2026-10-20T03:36:49.567Z"
+  },
+  {
+    "id": 3,
+    "name": "Nanda",
+    "email": "nansa@example.com",
+    "password": "$2b$10$gVUQhrHEG.iAPcyV2ntUWu0P.L4e6eajs6P7Crk2Pf7hngXk/f3Wy",
+    "createdAt": "2026-10-20T04:50:16.178Z"
+  },
+  {
+    "id": 4,
+    "name": "caca",
+    "email": "caca@example.com",
+    "password": "$2b$10$GgZctZEtp.DQtYiqYnKTcu4Q0t973oGpOK.yJ1xeU7CU5J8i3h1vy",
+    "createdAt": "2026-10-20T05:54:34.731Z"
   }
 ]

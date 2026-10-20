@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { getAuthSession } from '../utils/authStorage';
+import { deleteAuthSession, getAuthSession } from '../utils/authStorage';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -280,24 +280,51 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Week 4 Task 2: Alur Data (fetch(API_URL) → response.json() → RawProductPayload[] → mapping → Product[] → setProducts() → UI)
-  const loadPrelovedProducts = async () => {
+  // Week 4 Task 2 & Week 5: Alur Data Produk dengan Authorization JWT
+  const loadPrelovedProducts = async (passedToken?: unknown) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
-      // 1. Ambil data dari REST API endpoint
-      const response = await fetch(API_PRODUCTS_URL);
+      // Pastikan token tersedia dari argumen atau dari session storage
+      let token = typeof passedToken === 'string' ? passedToken : undefined;
+      if (!token) {
+        const session = await getAuthSession();
+        if (!session || !session.isLoggedIn || !session.token || !session.token.trim()) {
+          await deleteAuthSession();
+          setAuthStatus('unauthenticated');
+          router.replace('/login');
+          return;
+        }
+        token = session.token;
+      }
 
-      // 2. Pengecekan response.ok
+      // 1. Ambil data dari REST API endpoint dengan header Authorization Bearer
+      const response = await fetch(API_PRODUCTS_URL, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // 2. Jika token ditolak oleh server (401: kedaluwarsa, tidak valid, atau telah dicabut)
+      if (response.status === 401) {
+        await deleteAuthSession();
+        setAuthStatus('unauthenticated');
+        router.replace('/login');
+        return;
+      }
+
+      // 3. Pengecekan response.ok untuk kode selain 401 (misal 500)
       if (!response.ok) {
         throw new Error(`Gagal memuat produk dari server (status ${response.status})`);
       }
 
-      // 3. Parse JSON response menjadi RawProductPayload[]
+      // 4. Parse JSON response menjadi RawProductPayload[]
       const rawData: RawProductPayload[] = await response.json();
 
-      // 4. Mapping data mentah ke Data Model Product (Task 1 & Task 2)
+      // 5. Mapping data mentah ke Data Model Product (Task 1 & Task 2)
       const mappedProducts: Product[] = rawData.map((item: RawProductPayload) => ({
         id: Number(item.id),
         name: String(item.name),
@@ -309,7 +336,7 @@ export default function HomeScreen() {
         tag: item.tag ?? null,
       }));
 
-      // 5. Simpan hasil mapping ke state untuk ditampilkan ke UI (Task 3)
+      // 6. Simpan hasil mapping ke state untuk ditampilkan ke UI (Task 3)
       setProducts(mappedProducts);
     } catch (error) {
       console.error('Gagal memuat produk dari REST API:', error);
@@ -326,23 +353,26 @@ export default function HomeScreen() {
     const checkAuthSession = async () => {
       try {
         const session = await getAuthSession();
-        if (session && session.isLoggedIn === true) {
+        // Sesi harus aktif dan memiliki token JWT
+        if (session && session.isLoggedIn === true && session.token && session.token.trim()) {
           if (isMounted) {
             setAuthStatus('authenticated');
-            // Hanya muat data produk setelah user terverifikasi login
-            loadPrelovedProducts();
+            // Hanya muat data produk setelah user terverifikasi login dan memiliki token
+            loadPrelovedProducts(session.token);
           }
           return;
         }
 
-        // Jika session tidak ada, kosong, tidak valid, atau isLoggedIn !== true
+        // Jika session tidak ada, kosong, tidak valid, atau tidak memiliki token
         if (isMounted) {
+          await deleteAuthSession();
           setAuthStatus('unauthenticated');
           router.replace('/login');
         }
       } catch (error) {
         console.error('Gagal membaca session di Home:', error);
         if (isMounted) {
+          await deleteAuthSession();
           setAuthStatus('unauthenticated');
           router.replace('/login');
         }
@@ -497,7 +527,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.retryButton}
                 activeOpacity={0.7}
-                onPress={loadPrelovedProducts}
+                onPress={() => loadPrelovedProducts()}
               >
                 <Text style={styles.retryButtonText}>Coba Lagi</Text>
               </TouchableOpacity>

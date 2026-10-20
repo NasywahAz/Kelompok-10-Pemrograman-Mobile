@@ -9,10 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { saveRegisteredUser } from '../utils/authStorage';
+import { getApiBaseUrl } from '../constants/api';
 
 // Color Palette konsisten dengan Home Week 2
 const COLORS = {
@@ -30,15 +31,26 @@ export default function RegisterScreen() {
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleRegister = async () => {
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
       Alert.alert('Perhatian', 'Nama lengkap wajib diisi.');
       return;
     }
 
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       Alert.alert('Perhatian', 'Email wajib diisi.');
+      return;
+    }
+
+    // Validasi format email dasar
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      Alert.alert('Perhatian', 'Format email tidak valid.');
       return;
     }
 
@@ -52,29 +64,61 @@ export default function RegisterScreen() {
       return;
     }
 
-    try {
-      const registeredUser = {
-        name: name.trim(),
-        email: email.trim(),
-        password,
-      };
-      await saveRegisteredUser(registeredUser);
-    } catch (error) {
-      console.error('Gagal menyimpan pendaftaran ke storage:', error);
-    }
-
-    // Registrasi berhasil (tahap awal sebelum integrasi Secure Storage)
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert('Registrasi berhasil');
-      }
-      router.push('/login');
+    if (isLoading) {
       return;
     }
 
-    Alert.alert('Berhasil', 'Registrasi berhasil', [
-      { text: 'OK', onPress: () => router.push('/login') },
-    ]);
+    setIsLoading(true);
+
+    try {
+      const registerUrl = `${getApiBaseUrl()}/api/auth/register`;
+      const response = await fetch(registerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          email: trimmedEmail,
+          password,
+        }),
+      });
+
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch {
+        // Response bukan JSON valid
+      }
+
+      if (response.status === 201 && responseData?.status === 'success') {
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && window.alert) {
+            window.alert('Registrasi berhasil');
+          }
+          router.push('/login');
+          return;
+        }
+
+        Alert.alert('Berhasil', 'Registrasi berhasil', [
+          { text: 'OK', onPress: () => router.push('/login') },
+        ]);
+      } else {
+        const backendMessage =
+          typeof responseData?.message === 'string' && responseData.message.trim()
+            ? responseData.message.trim()
+            : 'Gagal melakukan registrasi.';
+
+        Alert.alert('Gagal Daftar', backendMessage);
+      }
+    } catch (error) {
+      console.error('[Register] Terjadi kesalahan saat menghubungi server:', error);
+      const networkErrorMessage =
+        'Tidak dapat terhubung ke server. Pastikan server backend aktif dan koneksi tersedia.';
+      Alert.alert('Koneksi Gagal', networkErrorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLoginPress = () => {
@@ -150,11 +194,16 @@ export default function RegisterScreen() {
 
             {/* Tombol Daftar */}
             <TouchableOpacity
-              style={styles.registerButton}
+              style={[styles.registerButton, isLoading && { opacity: 0.7 }]}
               activeOpacity={0.8}
               onPress={handleRegister}
+              disabled={isLoading}
             >
-              <Text style={styles.registerButtonText}>Daftar</Text>
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.registerButtonText}>Daftar</Text>
+              )}
             </TouchableOpacity>
 
             {/* Teks Sudah punya akun? Masuk */}

@@ -12,6 +12,7 @@ export interface AuthSession {
   isLoggedIn: boolean;
   email: string;
   name?: string;
+  token?: string;
   loginAt: string;
 }
 
@@ -122,12 +123,18 @@ const deleteStorageItem = async (key: string): Promise<void> => {
  *
  * @param email Email pengguna yang berhasil login
  * @param name Nama pengguna yang berhasil login (opsional)
+ * @param token Token JWT dari backend Express (opsional)
  */
-export const saveAuthSession = async (email: string, name?: string): Promise<void> => {
+export const saveAuthSession = async (
+  email: string,
+  name?: string,
+  token?: string
+): Promise<void> => {
   const sessionData: AuthSession = {
     isLoggedIn: true,
     email,
     name: name || undefined,
+    token: token || undefined,
     loginAt: new Date().toISOString(),
   };
 
@@ -153,6 +160,15 @@ export const getAuthSession = async (): Promise<AuthSession | null> => {
     console.error('[authStorage] Gagal membaca session dari storage:', error);
     return null;
   }
+};
+
+/**
+ * Mengambil token JWT dari session authentication yang aktif.
+ * @returns token JWT string jika sesi aktif dan memiliki token, atau null jika tidak ada
+ */
+export const getAuthToken = async (): Promise<string | null> => {
+  const session = await getAuthSession();
+  return session?.token ?? null;
 };
 
 /**

@@ -13,10 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   getAuthSession,
+  getAuthToken,
   deleteAuthSession,
   getRegisteredUser,
   AuthSession,
 } from '../utils/authStorage';
+import { getApiBaseUrl } from '../constants/api';
 
 // Color Palette konsisten dengan Home Week 2 dan Login/Register
 const COLORS = {
@@ -280,6 +282,7 @@ export default function ProfilScreen() {
   const [userName, setUserName] = useState<string>('');
   const [userEmail, setUserEmail] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   // Membaca sesi authentication saat halaman dibuka
   useEffect(() => {
@@ -346,18 +349,120 @@ export default function ProfilScreen() {
 
   // Handler eksekusi logout setelah konfirmasi
   const handleConfirmLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
     try {
-      // Hapus sesi login saja, jangan menghapus data pendaftaran akun terdaftar
-      await deleteAuthSession();
-      router.replace('/login');
+      setIsLoggingOut(true);
+
+      // 1. Ambil JWT token menggunakan helper yang tersedia
+      const token = await getAuthToken();
+
+      // 2. Jika token tidak tersedia, hapus sesi lokal dan arahkan pengguna ke login
+      // tanpa mengirim request logout yang tidak memiliki autentikasi
+      if (!token || !token.trim()) {
+        await deleteAuthSession();
+        router.replace('/login');
+        return;
+      }
+
+      // 3. Jika token tersedia, kirim request POST ke endpoint backend logout dengan Authorization Bearer
+      let response: Response | null = null;
+      try {
+        response = await fetch(`${getApiBaseUrl()}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (networkError) {
+        // Tangani kegagalan jaringan: jangan mengklaim token sudah dicabut jika server tidak dapat dihubungi
+        console.error('Gagal menghubungi server backend untuk logout:', networkError);
+
+        const networkMessage =
+          'Tidak dapat terhubung ke server untuk mencabut token. Sesi pada perangkat ini telah dibersihkan demi keamanan.';
+
+        try {
+          await deleteAuthSession();
+        } catch (storageError) {
+          console.error('Gagal menghapus sesi lokal:', storageError);
+        }
+
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && window.alert) {
+            window.alert(networkMessage);
+          }
+          router.replace('/login');
+          return;
+        }
+
+        Alert.alert('Koneksi Gagal', networkMessage, [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/login');
+            },
+          },
+        ]);
+        return;
+      }
+
+      // 4. Tangani respons backend:
+      // Status 200: Logout berhasil, token dicabut di backend
+      // Status 401: Token sudah tidak valid atau telah dicabut sebelumnya
+      if (response && (response.status === 200 || response.status === 401)) {
+        await deleteAuthSession();
+        router.replace('/login');
+        return;
+      }
+
+      // 5. Tangani respons server selain 200 dan 401
+      const serverErrorMessage =
+        'Terjadi kendala pada server saat memproses logout. Sesi pada perangkat ini telah dibersihkan demi keamanan.';
+
+      try {
+        await deleteAuthSession();
+      } catch (storageError) {
+        console.error('Gagal menghapus sesi lokal:', storageError);
+      }
+
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert(serverErrorMessage);
+        }
+        router.replace('/login');
+        return;
+      }
+
+      Alert.alert('Peringatan Logout', serverErrorMessage, [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.replace('/login');
+          },
+        },
+      ]);
     } catch (error) {
       console.error('Gagal melakukan logout:', error);
-      Alert.alert('Error', 'Gagal keluar dari sesi. Silakan coba lagi.');
+      try {
+        await deleteAuthSession();
+      } catch (storageError) {
+        console.error('Gagal menghapus sesi lokal:', storageError);
+      }
+      router.replace('/login');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
   // Handler tombol Log Out dengan dialog konfirmasi
   const handleLogoutPress = () => {
+    if (isLoggingOut) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       const confirmLogout =
         typeof window !== 'undefined' && window.confirm
@@ -569,11 +674,16 @@ export default function ProfilScreen() {
         {/* TOMBOL LOG OUT DI BAGIAN BAWAH */}
         <View style={styles.logoutContainer}>
           <TouchableOpacity
-            style={styles.logoutButton}
+            style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
             activeOpacity={0.8}
             onPress={handleLogoutPress}
+            disabled={isLoggingOut}
           >
-            <Text style={styles.logoutButtonText}>Log Out</Text>
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={COLORS.accentRed} />
+            ) : (
+              <Text style={styles.logoutButtonText}>Log Out</Text>
+            )}
           </TouchableOpacity>
           <Text style={styles.logoutNote}>
             Keluar dari sesi akun Anda pada perangkat ini
@@ -826,6 +936,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
   },
   logoutButtonText: {
     fontSize: 15,
