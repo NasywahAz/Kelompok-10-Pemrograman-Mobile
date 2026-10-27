@@ -5,12 +5,9 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -18,10 +15,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_PRODUCTS_URL } from '../constants/api';
 import { COLORS } from '../constants/colors';
-import { CATEGORIES } from '../constants/categories';
 import { Product, RawProductPayload } from '../types/product';
 import { formatRupiah } from '../utils/format';
 import { BottomNav } from '../components/common/BottomNav';
+import { OfflineBanner } from '../components/common/OfflineBanner';
+import { CategorySection } from '../components/home/CategorySection';
+import { HomeTopBar } from '../components/home/HomeTopBar';
+import { ProductCard } from '../components/home/ProductCard';
 import NetInfo from '@react-native-community/netinfo';
 
 // Re-export untuk kompatibilitas
@@ -30,66 +30,6 @@ export type { Product, RawProductPayload };
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // REST API Endpoint: API_PRODUCTS_URL (GET /api/products)
-
-// Pure React Native Icons
-function SearchIcon({ size = 16, color = COLORS.mutedText }) {
-  return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <View
-        style={{
-          width: size * 0.72,
-          height: size * 0.72,
-          borderRadius: (size * 0.72) / 2,
-          borderWidth: 2,
-          borderColor: color,
-          marginBottom: 2,
-          marginRight: 2,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          right: 0,
-          width: size * 0.36,
-          height: 2,
-          backgroundColor: color,
-          transform: [{ rotate: '45deg' }],
-          borderRadius: 1,
-        }}
-      />
-    </View>
-  );
-}
-
-function CartIcon({ size = 22, color = COLORS.darkText }) {
-  return (
-    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <View
-        style={{
-          width: size * 0.44,
-          height: size * 0.3,
-          borderTopLeftRadius: size * 0.22,
-          borderTopRightRadius: size * 0.22,
-          borderWidth: 1.8,
-          borderBottomWidth: 0,
-          borderColor: color,
-          marginBottom: -1,
-        }}
-      />
-      <View
-        style={{
-          width: size * 0.84,
-          height: size * 0.54,
-          borderWidth: 1.8,
-          borderColor: color,
-          borderRadius: 3,
-          backgroundColor: 'transparent',
-        }}
-      />
-    </View>
-  );
-}
 
 type AuthStatus = 'checking' | 'unauthenticated' | 'authenticated';
 
@@ -337,38 +277,14 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* 1.1 TOP BAR / SEARCH */}
-      <View style={styles.topBar}>
-        <View style={styles.searchBar}>
-          <SearchIcon size={16} color={COLORS.mutedText} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Cari barang preloved..."
-            placeholderTextColor={COLORS.mutedText}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-        </View>
-
-        <TouchableOpacity
-          style={styles.cartButton}
-          activeOpacity={0.7}
-          onPress={() => handleNavPress('Keranjang')}
-        >
-          <CartIcon size={22} color={COLORS.darkText} />
-          {/* Accent Red Notification Badge */}
-          <View style={styles.cartBadge} />
-        </TouchableOpacity>
-      </View>
+      <HomeTopBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onCartPress={() => handleNavPress('Keranjang')}
+      />
 
       {/* Week 6 Task 03: Banner Indikator Offline */}
-      {isOffline && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineBannerText}>
-            ⚠️ Tidak ada koneksi internet. Mode offline aktif.
-          </Text>
-        </View>
-      )}
+      <OfflineBanner visible={isOffline} />
 
       {/* SCROLLABLE MARKETPLACE CONTENT */}
       <ScrollView
@@ -377,46 +293,10 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* 1.2 KATEGORI SECTION */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Kategori</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const isSelected = selectedCategory === cat.name;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={styles.categoryItem}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setSelectedCategory(isSelected ? null : cat.name);
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.categoryIconBox,
-                      isSelected && styles.categoryIconBoxActive,
-                    ]}
-                  >
-                    <Text style={styles.categoryEmoji}>{cat.icon}</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.categoryName,
-                      isSelected && styles.categoryNameActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <CategorySection
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
 
         {/* 1.3 PRODUK / REKOMENDASI SECTION */}
         <View style={styles.sectionContainer}>
@@ -466,50 +346,17 @@ export default function HomeScreen() {
               }}
             >
               {filteredProducts.map((item) => (
-                <TouchableOpacity
+                <ProductCard
                   key={item.id}
-                  style={[styles.productCard, { width: cardWidth }]}
-                  activeOpacity={0.85}
-                  onPress={() =>
+                  product={item}
+                  cardWidth={cardWidth}
+                  onPress={(product) =>
                     Alert.alert(
-                      item.name,
-                      `Harga: ${formatRupiah(item.price)}\nLokasi: ${item.location}\nKondisi: ${item.condition}`
+                      product.name,
+                      `Harga: ${formatRupiah(product.price)}\nLokasi: ${product.location}\nKondisi: ${product.condition}`
                     )
                   }
-                >
-                  {/* Gambar Produk */}
-                  <View style={styles.cardImageContainer}>
-                    <Image source={{ uri: item.image }} style={styles.cardImage} />
-                    {/* Accent Red Badge jika ada Promo/Highlight */}
-                    {item.tag && (
-                      <View style={styles.accentBadge}>
-                        <Text style={styles.accentBadgeText}>{item.tag}</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Detail Produk */}
-                  <View style={styles.cardDetails}>
-                    {/* Nama Produk (maksimal 2 baris) */}
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-
-                    {/* Harga (Informasi Paling Menonjol) */}
-                    <Text style={styles.productPrice}>{formatRupiah(item.price)}</Text>
-
-                    {/* Kondisi Badge */}
-                    <View style={styles.conditionBadge}>
-                      <Text style={styles.conditionBadgeText}>{item.condition}</Text>
-                    </View>
-
-                    {/* Lokasi */}
-                    <View style={styles.locationRow}>
-                      <Text style={styles.locationPin}>📍</Text>
-                      <Text style={styles.locationText}>{item.location}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           )}
@@ -531,68 +378,11 @@ export default function HomeScreen() {
 // Perhitungan lebar card untuk grid 2 kolom yang responsif
 const PADDING = 12;
 const GAP = 10;
-const CARD_WIDTH = Math.floor((SCREEN_WIDTH - PADDING * 2 - GAP) / 2);
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.white,
-  },
-
-  // 1.1 TOP BAR / SEARCH
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: PADDING,
-    paddingVertical: 10,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 40,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 13.5,
-    color: COLORS.darkText,
-    paddingVertical: 0,
-  },
-  cartButton: {
-    marginLeft: 12,
-    padding: 6,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.accentRed,
   },
 
   // SCROLL CONTENT
@@ -634,149 +424,12 @@ const styles = StyleSheet.create({
     color: COLORS.primaryGreen,
   },
 
-  // 1.2 KATEGORI
-  categoryScroll: {
-    paddingHorizontal: PADDING,
-    gap: 12,
-  },
-  categoryItem: {
-    alignItems: 'center',
-    width: 62,
-  },
-  categoryIconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  categoryIconBoxActive: {
-    backgroundColor: COLORS.lightGreen,
-    borderColor: COLORS.primaryGreen,
-    borderWidth: 1.5,
-  },
-  categoryEmoji: {
-    fontSize: 22,
-  },
-  categoryName: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: COLORS.darkText,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  categoryNameActive: {
-    color: COLORS.primaryGreen,
-    fontWeight: '700',
-  },
-
   // 1.3 & 1.4 PRODUK GRID (2 KOLOM)
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: PADDING,
-  },
-  productCard: {
-    width: CARD_WIDTH,
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-    marginBottom: GAP,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1.5 },
-        shadowOpacity: 0.06,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 1.5,
-      },
-    }),
-  },
-  cardImageContainer: {
-    width: '100%',
-    height: 140,
-    backgroundColor: '#F0F2F0',
-    position: 'relative',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  accentBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: COLORS.accentRed,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  accentBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  cardDetails: {
-    padding: 10,
-  },
-  productName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.darkText,
-    lineHeight: 18,
-    minHeight: 36,
-  },
-  productPrice: {
-    fontSize: 15.5,
-    fontWeight: '700',
-    color: COLORS.primaryGreen,
-    marginTop: 4,
-  },
-  conditionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.lightGreen,
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
-    borderRadius: 4,
-    marginTop: 6,
-  },
-  conditionBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.primaryGreen,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  locationPin: {
-    fontSize: 10,
-    marginRight: 2,
-  },
-  locationText: {
-    fontSize: 11,
-    color: COLORS.mutedText,
   },
   emptyState: {
     padding: 30,
@@ -820,21 +473,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primaryGreen,
-  },
-  offlineBanner: {
-    backgroundColor: '#FFF3CD',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFEEBA',
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  offlineBannerText: {
-    fontSize: 12,
-    color: '#856404',
-    fontWeight: '500',
-    textAlign: 'center',
   },
 });
