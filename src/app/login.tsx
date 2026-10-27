@@ -21,22 +21,11 @@ import {
   saveAuthSession,
 } from '../utils/authStorage';
 import { getApiBaseUrl } from '../constants/api';
+import { COLORS } from '../constants/colors';
 
 // Re-export untuk kompatibilitas jika dipanggil modul lain
 export { AUTH_SESSION_KEY, deleteAuthSession };
 export type { AuthSession };
-
-// Color Palette konsisten dengan Home Week 2 dan Register Week 3
-const COLORS = {
-  primaryGreen: '#2E7D5B',
-  accentRed: '#D95C5C',
-  background: '#F8F9F7',
-  white: '#FFFFFF',
-  darkText: '#263238',
-  lightGreen: '#E8F3EE',
-  mutedText: '#78909C',
-  border: '#E8EBE9',
-};
 
 export default function LoginScreen() {
   const [email, setEmail] = useState<string>('');

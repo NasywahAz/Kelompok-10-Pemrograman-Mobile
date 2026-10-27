@@ -14,18 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { getApiBaseUrl } from '../constants/api';
-
-// Color Palette konsisten dengan Home Week 2
-const COLORS = {
-  primaryGreen: '#2E7D5B',
-  accentRed: '#D95C5C',
-  background: '#F8F9F7',
-  white: '#FFFFFF',
-  darkText: '#263238',
-  lightGreen: '#E8F3EE',
-  mutedText: '#78909C',
-  border: '#E8EBE9',
-};
+import { COLORS } from '../constants/colors';
 
 export default function RegisterScreen() {
   const [name, setName] = useState<string>('');

@@ -17,61 +17,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_PRODUCTS_URL } from '../constants/api';
+import { COLORS } from '../constants/colors';
+import { CATEGORIES } from '../constants/categories';
+import { Product, RawProductPayload } from '../types/product';
+import { formatRupiah } from '../utils/format';
+import { BottomNav } from '../components/common/BottomNav';
 import NetInfo from '@react-native-community/netinfo';
 
+// Re-export untuk kompatibilitas
+export type { Product, RawProductPayload };
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// Color Palette
-const COLORS = {
-  primaryGreen: '#2E7D5B',
-  accentRed: '#D95C5C',
-  background: '#F8F9F7',
-  white: '#FFFFFF',
-  darkText: '#263238',
-  lightGreen: '#E8F3EE',
-  mutedText: '#78909C',
-  border: '#E8EBE9',
-};
-
-// Data Model Product (Task 1)
-export interface Product {
-  id: number;
-  name: string;
-  price: number;
-  location: string;
-  condition: string;
-  category: string;
-  image: string;
-  tag?: string | null;
-}
-
-// Interface Payload Data Produk Mentah
-interface RawProductPayload {
-  id: number;
-  name: string;
-  price: number;
-  location: string;
-  condition: string;
-  category: string;
-  image: string;
-  tag?: string | null;
-}
-
-// Helper untuk format Rupiah pada UI
-const formatRupiah = (price: number): string => {
-  return `Rp${price.toLocaleString('id-ID')}`;
-};
-
-// Data Kategori Asli Preloved (Week 2)
-const CATEGORIES = [
-  { id: '1', name: 'Elektronik', icon: '💻' },
-  { id: '2', name: 'Fashion', icon: '👕' },
-  { id: '3', name: 'Buku', icon: '📚' },
-  { id: '4', name: 'Rumah', icon: '🏠' },
-  { id: '5', name: 'Hobi', icon: '🎮' },
-  { id: '6', name: 'Kecantikan', icon: '💄' },
-  { id: '7', name: 'Lainnya', icon: '📦' },
-];
 
 // REST API Endpoint: API_PRODUCTS_URL (GET /api/products)
 
@@ -129,138 +85,6 @@ function CartIcon({ size = 22, color = COLORS.darkText }) {
           borderColor: color,
           borderRadius: 3,
           backgroundColor: 'transparent',
-        }}
-      />
-    </View>
-  );
-}
-
-interface NavIconProps {
-  active: boolean;
-}
-
-function HomeNavIcon({ active }: NavIconProps) {
-  const color = active ? COLORS.primaryGreen : COLORS.mutedText;
-  return (
-    <View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: 0,
-          height: 0,
-          borderLeftWidth: 9,
-          borderRightWidth: 9,
-          borderBottomWidth: 8,
-          borderLeftColor: 'transparent',
-          borderRightColor: 'transparent',
-          borderBottomColor: color,
-        }}
-      />
-      <View
-        style={{
-          width: 14,
-          height: 9,
-          backgroundColor: color,
-          borderBottomLeftRadius: 2,
-          borderBottomRightRadius: 2,
-          marginTop: -1,
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <View
-          style={{
-            width: 4,
-            height: 4.5,
-            backgroundColor: COLORS.white,
-            borderTopLeftRadius: 1,
-            borderTopRightRadius: 1,
-          }}
-        />
-      </View>
-    </View>
-  );
-}
-
-function CategoryNavIcon({ active }: NavIconProps) {
-  const color = active ? COLORS.primaryGreen : COLORS.mutedText;
-  return (
-    <View style={{ width: 18, height: 18, justifyContent: 'space-between' }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ width: 7.5, height: 7.5, borderRadius: 2, backgroundColor: color }} />
-        <View style={{ width: 7.5, height: 7.5, borderRadius: 2, backgroundColor: color }} />
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ width: 7.5, height: 7.5, borderRadius: 2, backgroundColor: color }} />
-        <View style={{ width: 7.5, height: 7.5, borderRadius: 2, backgroundColor: color }} />
-      </View>
-    </View>
-  );
-}
-
-function SellNavIcon() {
-  return (
-    <View style={styles.sellIconContainer}>
-      <View style={styles.sellIconHorizontal} />
-      <View style={styles.sellIconVertical} />
-    </View>
-  );
-}
-
-function ChatNavIcon({ active }: NavIconProps) {
-  const color = active ? COLORS.primaryGreen : COLORS.mutedText;
-  return (
-    <View style={{ width: 22, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: 19,
-          height: 14,
-          borderRadius: 5,
-          borderWidth: 1.8,
-          borderColor: color,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 1.5,
-          left: 4,
-          width: 0,
-          height: 0,
-          borderLeftWidth: 2.5,
-          borderRightWidth: 2.5,
-          borderTopWidth: 3.5,
-          borderLeftColor: 'transparent',
-          borderRightColor: 'transparent',
-          borderTopColor: color,
-        }}
-      />
-    </View>
-  );
-}
-
-function ProfileNavIcon({ active }: NavIconProps) {
-  const color = active ? COLORS.primaryGreen : COLORS.mutedText;
-  return (
-    <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          borderWidth: 1.8,
-          borderColor: color,
-        }}
-      />
-      <View
-        style={{
-          width: 15,
-          height: 7,
-          borderTopLeftRadius: 7.5,
-          borderTopRightRadius: 7.5,
-          borderWidth: 1.8,
-          borderBottomWidth: 0,
-          borderColor: color,
-          marginTop: 1.5,
         }}
       />
     </View>
@@ -699,52 +523,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* 1.5 BOTTOM NAVIGATION */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => { }}
-        >
-          <HomeNavIcon active={true} />
-          <Text style={[styles.navLabel, styles.navLabelActive]}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => handleNavPress('Kategori')}
-        >
-          <CategoryNavIcon active={false} />
-          <Text style={styles.navLabel}>Kategori</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.8}
-          onPress={() => handleNavPress('Jual')}
-        >
-          <SellNavIcon />
-          <Text style={styles.navLabel}>Jual</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => handleNavPress('Chat')}
-        >
-          <ChatNavIcon active={false} />
-          <Text style={styles.navLabel}>Chat</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.7}
-          onPress={() => handleNavPress('Profil')}
-        >
-          <ProfileNavIcon active={false} />
-          <Text style={styles.navLabel}>Profil</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNav activeTab="Home" />
     </SafeAreaView>
   );
 }
@@ -1008,74 +787,6 @@ const styles = StyleSheet.create({
     color: COLORS.mutedText,
   },
 
-  // 1.5 BOTTOM NAVIGATION
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 18 : 8,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
-  },
-  navLabel: {
-    fontSize: 10.5,
-    color: COLORS.mutedText,
-    marginTop: 3,
-    fontWeight: '500',
-  },
-  navLabelActive: {
-    color: COLORS.primaryGreen,
-    fontWeight: '700',
-  },
-  sellIconContainer: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.primaryGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: COLORS.primaryGreen,
-        shadowOffset: { width: 0, height: 1.5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  sellIconHorizontal: {
-    width: 12,
-    height: 2,
-    backgroundColor: COLORS.white,
-    borderRadius: 1,
-  },
-  sellIconVertical: {
-    position: 'absolute',
-    width: 2,
-    height: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: 1,
-  },
   loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
