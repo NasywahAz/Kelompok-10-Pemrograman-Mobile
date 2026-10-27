@@ -12,5 +12,40 @@
     "email": "caca@example.com",
     "expiresAt": "2026-10-20T08:05:35.000Z",
     "revokedAt": "2026-10-20T07:06:41.441Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0ODcwNDQsImV4cCI6MTc5MjQ5MDY0NH0.qcZvNQcPZ3cI7b76LejktsxVOkl9W09O2HbsTbfbZ9I",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T10:04:04.000Z",
+    "revokedAt": "2026-10-20T09:13:34.672Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0ODc2NDgsImV4cCI6MTc5MjQ5MTI0OH0._pMfCmpOTKrsKA6E1kSldWWYcV-huUa7DdGbDgnOj-I",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T10:14:08.000Z",
+    "revokedAt": "2026-10-20T09:39:18.041Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0ODkxNzQsImV4cCI6MTc5MjQ5Mjc3NH0.V7iigH-wSnS6IwTi8ztzC5VIOmoM92uRpCnYFiB0UP4",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T10:39:34.000Z",
+    "revokedAt": "2026-10-20T09:44:17.788Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0ODk1OTYsImV4cCI6MTc5MjQ5MzE5Nn0.EM66TYdqRoABZkYy1-nXSrSB27RmuImrsG-5GghhAo4",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T10:46:36.000Z",
+    "revokedAt": "2026-10-20T09:50:46.440Z"
+  },
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6ImNhY2EiLCJlbWFpbCI6ImNhY2FAZXhhbXBsZS5jb20iLCJpYXQiOjE3OTI0ODk4NTksImV4cCI6MTc5MjQ5MzQ1OX0.0w0NnaalLkaGmfAQNVKlN-0XZXyma2DkhrpiTwC1rAk",
+    "userId": 4,
+    "email": "caca@example.com",
+    "expiresAt": "2026-10-20T10:50:59.000Z",
+    "revokedAt": "2026-10-20T09:51:19.142Z"
   }
 ]

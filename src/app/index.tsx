@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { deleteAuthSession, getAuthSession } from '../utils/authStorage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_PRODUCTS_URL } from '../constants/api';
+import NetInfo from '@react-native-community/netinfo';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -280,9 +281,25 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Week 4 Task 2 & Week 5: Alur Data Produk dengan Authorization JWT
+  // Week 6 Task 03: State koneksi offline/online
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const wasOfflineRef = useRef<boolean>(false);
+  const isFetchingRef = useRef<boolean>(false);
+  const authStatusRef = useRef<AuthStatus>(authStatus);
+
+  useEffect(() => {
+    authStatusRef.current = authStatus;
+  }, [authStatus]);
+
+  // Week 4 Task 2, Week 5 (JWT), Week 6 Task 01 (API Error) & Task 03 (Offline)
   const loadPrelovedProducts = async (passedToken?: unknown) => {
+    // Cegah pemanggilan request ganda jika sedang dalam proses pemanggilan API
+    if (isFetchingRef.current) {
+      return;
+    }
+
     try {
+      isFetchingRef.current = true;
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -300,13 +317,23 @@ export default function HomeScreen() {
       }
 
       // 1. Ambil data dari REST API endpoint dengan header Authorization Bearer
-      const response = await fetch(API_PRODUCTS_URL, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      let response: Response;
+      try {
+        response = await fetch(API_PRODUCTS_URL, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (networkError) {
+        // Penanganan error koneksi jaringan / server tidak dapat dijangkau
+        console.error('Koneksi ke REST API gagal:', networkError);
+        setErrorMessage(
+          'Tidak dapat terhubung ke server. Pastikan server backend aktif dan periksa koneksi internet Anda.'
+        );
+        return;
+      }
 
       // 2. Jika token ditolak oleh server (401: kedaluwarsa, tidak valid, atau telah dicabut)
       if (response.status === 401) {
@@ -316,33 +343,68 @@ export default function HomeScreen() {
         return;
       }
 
-      // 3. Pengecekan response.ok untuk kode selain 401 (misal 500)
+      // 3. Penanganan HTTP error response (status non-2xx selain 401)
       if (!response.ok) {
-        throw new Error(`Gagal memuat produk dari server (status ${response.status})`);
+        let serverMessage: string | null = null;
+        try {
+          const errorData = await response.json();
+          if (errorData && typeof errorData.message === 'string' && errorData.message.trim()) {
+            serverMessage = errorData.message.trim();
+          }
+        } catch {
+          // Abaikan jika respons error server bukan format JSON valid
+        }
+
+        if (response.status === 404) {
+          // Penanganan HTTP 404 Not Found
+          setErrorMessage(
+            serverMessage || 'Endpoint atau data produk tidak ditemukan (Error 404).'
+          );
+        } else if (response.status >= 500) {
+          // Penanganan HTTP 500 dan Server Error lainnya
+          setErrorMessage(
+            serverMessage || `Server sedang bermasalah (Error ${response.status}). Silakan coba beberapa saat lagi.`
+          );
+        } else {
+          // Penanganan HTTP error lainnya (misal 400, 403)
+          setErrorMessage(
+            serverMessage || `Gagal memuat produk dari server (status ${response.status}).`
+          );
+        }
+        return;
       }
 
       // 4. Parse JSON response menjadi RawProductPayload[]
-      const rawData: RawProductPayload[] = await response.json();
+      let rawData: RawProductPayload[];
+      try {
+        rawData = await response.json();
+      } catch {
+        setErrorMessage('Format data produk dari server tidak valid.');
+        return;
+      }
 
       // 5. Mapping data mentah ke Data Model Product (Task 1 & Task 2)
-      const mappedProducts: Product[] = rawData.map((item: RawProductPayload) => ({
-        id: Number(item.id),
-        name: String(item.name),
-        price: Number(item.price),
-        location: String(item.location),
-        condition: String(item.condition),
-        category: String(item.category),
-        image: String(item.image),
-        tag: item.tag ?? null,
-      }));
+      const mappedProducts: Product[] = Array.isArray(rawData)
+        ? rawData.map((item: RawProductPayload) => ({
+            id: Number(item.id),
+            name: String(item.name),
+            price: Number(item.price),
+            location: String(item.location),
+            condition: String(item.condition),
+            category: String(item.category),
+            image: String(item.image),
+            tag: item.tag ?? null,
+          }))
+        : [];
 
       // 6. Simpan hasil mapping ke state untuk ditampilkan ke UI (Task 3)
       setProducts(mappedProducts);
     } catch (error) {
-      console.error('Gagal memuat produk dari REST API:', error);
-      setErrorMessage('Gagal memuat produk.');
+      console.error('Terjadi kesalahan tak terduga saat memproses produk:', error);
+      setErrorMessage('Terjadi kesalahan saat memproses data produk.');
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -383,6 +445,31 @@ export default function HomeScreen() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Week 6 Task 03: Deteksi perubahan koneksi secara real-time & auto-recovery saat koneksi pulih
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const currentlyOffline = state.isConnected === false;
+      setIsOffline(currentlyOffline);
+
+      if (currentlyOffline) {
+        wasOfflineRef.current = true;
+      } else if (state.isConnected === true) {
+        // Jika sebelumnya offline dan sekarang koneksi pulih (online)
+        if (wasOfflineRef.current) {
+          wasOfflineRef.current = false;
+          // Panggil loadPrelovedProducts hanya jika user terverifikasi dan tidak sedang fetching
+          if (authStatusRef.current === 'authenticated' && !isFetchingRef.current) {
+            loadPrelovedProducts();
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
     };
   }, []);
 
@@ -449,6 +536,15 @@ export default function HomeScreen() {
           <View style={styles.cartBadge} />
         </TouchableOpacity>
       </View>
+
+      {/* Week 6 Task 03: Banner Indikator Offline */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            ⚠️ Tidak ada koneksi internet. Mode offline aktif.
+          </Text>
+        </View>
+      )}
 
       {/* SCROLLABLE MARKETPLACE CONTENT */}
       <ScrollView
@@ -1013,5 +1109,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primaryGreen,
+  },
+  offlineBanner: {
+    backgroundColor: '#FFF3CD',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFEEBA',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineBannerText: {
+    fontSize: 12,
+    color: '#856404',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
