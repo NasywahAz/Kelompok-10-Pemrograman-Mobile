@@ -175,6 +175,11 @@ export function BottomNav({ activeTab, onTabPress }: BottomNavProps) {
       return;
     }
 
+    if (tab === 'Jual') {
+      router.push('/jual');
+      return;
+    }
+
     Alert.alert('Info', `Fitur ${tab} akan tersedia pada tahap berikutnya.`);
   };
 
