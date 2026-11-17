@@ -1,6 +1,6 @@
-import { Redirect, router } from 'expo-router';
-import { deleteAuthSession, getAuthSession } from '../utils/authStorage';
-import { useEffect, useRef, useState } from 'react';
+import NetInfo from "@react-native-community/netinfo";
+import { Redirect, router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,33 +11,35 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/colors';
-import { fetchPrelovedProducts } from '../utils/api';
-import { Product, RawProductPayload } from '../types/product';
-import { formatRupiah } from '../utils/format';
-import { BottomNav } from '../components/common/BottomNav';
-import { OfflineBanner } from '../components/common/OfflineBanner';
-import { CategorySection } from '../components/home/CategorySection';
-import { HomeTopBar } from '../components/home/HomeTopBar';
-import { ProductCard } from '../components/home/ProductCard';
-import NetInfo from '@react-native-community/netinfo';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BottomNav } from "../components/common/BottomNav";
+import { OfflineBanner } from "../components/common/OfflineBanner";
+import { CategorySection } from "../components/home/CategorySection";
+import { HomeTopBar } from "../components/home/HomeTopBar";
+import { ProductCard } from "../components/home/ProductCard";
+import { COLORS } from "../constants/colors";
+import { Product, RawProductPayload } from "../types/product";
+import { fetchPrelovedProducts } from "../utils/api";
+import { deleteAuthSession, getAuthSession } from "../utils/authStorage";
+import { formatRupiah } from "../utils/format";
 
 // Re-export untuk kompatibilitas
 export type { Product, RawProductPayload };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // REST API Endpoint: GET /api/products (via src/utils/api.ts)
 
-type AuthStatus = 'checking' | 'unauthenticated' | 'authenticated';
+type AuthStatus = "checking" | "unauthenticated" | "authenticated";
 
 export default function HomeScreen() {
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const { width: windowWidth } = useWindowDimensions();
-  const [containerWidth, setContainerWidth] = useState(windowWidth || SCREEN_WIDTH);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [containerWidth, setContainerWidth] = useState(
+    windowWidth || SCREEN_WIDTH,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // State untuk menyimpan Product sesuai Data Model Task 1 & Task 2
@@ -68,13 +70,18 @@ export default function HomeScreen() {
       setErrorMessage(null);
 
       // Pastikan token tersedia dari argumen atau dari session storage
-      let token = typeof passedToken === 'string' ? passedToken : undefined;
+      let token = typeof passedToken === "string" ? passedToken : undefined;
       if (!token) {
         const session = await getAuthSession();
-        if (!session || !session.isLoggedIn || !session.token || !session.token.trim()) {
+        if (
+          !session ||
+          !session.isLoggedIn ||
+          !session.token ||
+          !session.token.trim()
+        ) {
           await deleteAuthSession();
-          setAuthStatus('unauthenticated');
-          router.replace('/login');
+          setAuthStatus("unauthenticated");
+          router.replace("/login");
           return;
         }
         token = session.token;
@@ -86,22 +93,27 @@ export default function HomeScreen() {
       // Jika token ditolak oleh server (401: kedaluwarsa, tidak valid, atau telah dicabut)
       if (result.isUnauthorized) {
         await deleteAuthSession();
-        setAuthStatus('unauthenticated');
-        router.replace('/login');
+        setAuthStatus("unauthenticated");
+        router.replace("/login");
         return;
       }
 
       // Jika request gagal (network error, status non-2xx, parse JSON error)
       if (!result.success || !result.data) {
-        setErrorMessage(result.errorMessage || 'Gagal memuat produk dari server.');
+        setErrorMessage(
+          result.errorMessage || "Gagal memuat produk dari server.",
+        );
         return;
       }
 
       // Simpan hasil data produk ke state untuk ditampilkan ke UI
       setProducts(result.data);
     } catch (error) {
-      console.error('Terjadi kesalahan tak terduga saat memproses produk:', error);
-      setErrorMessage('Terjadi kesalahan saat memproses data produk.');
+      console.error(
+        "Terjadi kesalahan tak terduga saat memproses produk:",
+        error,
+      );
+      setErrorMessage("Terjadi kesalahan saat memproses data produk.");
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
@@ -116,9 +128,14 @@ export default function HomeScreen() {
       try {
         const session = await getAuthSession();
         // Sesi harus aktif dan memiliki token JWT
-        if (session && session.isLoggedIn === true && session.token && session.token.trim()) {
+        if (
+          session &&
+          session.isLoggedIn === true &&
+          session.token &&
+          session.token.trim()
+        ) {
           if (isMounted) {
-            setAuthStatus('authenticated');
+            setAuthStatus("authenticated");
             // Hanya muat data produk setelah user terverifikasi login dan memiliki token
             loadPrelovedProducts(session.token);
           }
@@ -128,15 +145,15 @@ export default function HomeScreen() {
         // Jika session tidak ada, kosong, tidak valid, atau tidak memiliki token
         if (isMounted) {
           await deleteAuthSession();
-          setAuthStatus('unauthenticated');
-          router.replace('/login');
+          setAuthStatus("unauthenticated");
+          router.replace("/login");
         }
       } catch (error) {
-        console.error('Gagal membaca session di Home:', error);
+        console.error("Gagal membaca session di Home:", error);
         if (isMounted) {
           await deleteAuthSession();
-          setAuthStatus('unauthenticated');
-          router.replace('/login');
+          setAuthStatus("unauthenticated");
+          router.replace("/login");
         }
       }
     };
@@ -161,7 +178,10 @@ export default function HomeScreen() {
         if (wasOfflineRef.current) {
           wasOfflineRef.current = false;
           // Panggil loadPrelovedProducts hanya jika user terverifikasi dan tidak sedang fetching
-          if (authStatusRef.current === 'authenticated' && !isFetchingRef.current) {
+          if (
+            authStatusRef.current === "authenticated" &&
+            !isFetchingRef.current
+          ) {
             loadPrelovedProducts();
           }
         }
@@ -175,7 +195,7 @@ export default function HomeScreen() {
 
   // Tampilkan loading screen di tengah layar saat memeriksa session
   // agar pengguna tidak langsung melihat Home terlebih dahulu sebelum login
-  if (authStatus === 'checking') {
+  if (authStatus === "checking") {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primaryGreen} />
@@ -184,21 +204,25 @@ export default function HomeScreen() {
   }
 
   // Jika unauthenticated, arahkan ke /login dan jangan render Home
-  if (authStatus === 'unauthenticated') {
+  if (authStatus === "unauthenticated") {
     return <Redirect href="/login" />;
   }
 
   // Navigasi untuk menu navigasi bawah
   const handleNavPress = (menuName: string) => {
-    if (menuName === 'Profil') {
-      router.push('/profil');
+    if (menuName === "Profil") {
+      router.push("/profil");
       return;
     }
-    Alert.alert('Info', `Fitur ${menuName} akan tersedia pada tahap berikutnya.`);
+    Alert.alert(
+      "Info",
+      `Fitur ${menuName} akan tersedia pada tahap berikutnya.`,
+    );
   };
 
   // Perhitungan lebar card responsif 2 kolom
-  const currentWidth = containerWidth > 0 ? containerWidth : (windowWidth || SCREEN_WIDTH);
+  const currentWidth =
+    containerWidth > 0 ? containerWidth : windowWidth || SCREEN_WIDTH;
   const cardWidth = Math.floor((currentWidth - PADDING * 2 - GAP) / 2);
 
   // Filter produk berdasarkan pencarian dan kategori aktif (opsional jika dipilih)
@@ -206,17 +230,19 @@ export default function HomeScreen() {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
+    const matchesCategory = selectedCategory
+      ? product.category === selectedCategory
+      : true;
     return matchesSearch && matchesCategory;
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* 1.1 TOP BAR / SEARCH */}
       <HomeTopBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onCartPress={() => handleNavPress('Keranjang')}
+        onCartPress={() => handleNavPress("Keranjang")}
       />
 
       {/* Week 6 Task 03: Banner Indikator Offline */}
@@ -292,7 +318,7 @@ export default function HomeScreen() {
                   onPress={(product) =>
                     Alert.alert(
                       product.name,
-                      `Harga: ${formatRupiah(product.price)}\nLokasi: ${product.location}\nKondisi: ${product.condition}`
+                      `Harga: ${formatRupiah(product.price)}\nLokasi: ${product.location}\nKondisi: ${product.condition}`,
                     )
                   }
                 />
@@ -302,7 +328,9 @@ export default function HomeScreen() {
 
           {!isLoading && !errorMessage && filteredProducts.length === 0 && (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>Tidak ada produk ditemukan.</Text>
+              <Text style={styles.emptyStateText}>
+                Tidak ada produk ditemukan.
+              </Text>
             </View>
           )}
         </View>
@@ -338,15 +366,15 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: PADDING,
     marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.darkText,
     paddingHorizontal: PADDING,
     marginBottom: 10,
@@ -359,20 +387,20 @@ const styles = StyleSheet.create({
   },
   resetCategoryText: {
     fontSize: 11.5,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primaryGreen,
   },
 
   // 1.3 & 1.4 PRODUK GRID (2 KOLOM)
   productGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     paddingHorizontal: PADDING,
   },
   emptyState: {
     padding: 30,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyStateText: {
     fontSize: 13,
@@ -382,13 +410,13 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   stateContainer: {
     paddingVertical: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     fontSize: 13,
@@ -398,8 +426,8 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     color: COLORS.accentRed,
-    fontWeight: '500',
-    textAlign: 'center',
+    fontWeight: "500",
+    textAlign: "center",
   },
   retryButton: {
     marginTop: 10,
@@ -410,7 +438,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primaryGreen,
   },
 });
