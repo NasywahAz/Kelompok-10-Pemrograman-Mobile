@@ -1,31 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { COLORS } from '../constants/colors';
-import { CATEGORIES } from '../constants/categories';
-import { BottomNav } from '../components/common/BottomNav';
-import { getAuthSession } from '../utils/authStorage';
-import { formatRupiah } from '../utils/format';
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { BottomNav } from "../components/common/BottomNav";
+import { LocationMap } from "../components/location/LocationMap";
+import { CATEGORIES } from "../constants/categories";
+import { COLORS } from "../constants/colors";
+import type { ProductLocation } from "../types/location";
+import { getAuthSession } from "../utils/authStorage";
+import { formatRupiah } from "../utils/format";
+import { getCurrentProductLocation } from "../utils/location";
 
 const CONDITIONS = [
-  'Bekas - Seperti Baru',
-  'Bekas - Sangat Baik',
-  'Bekas - Baik',
-  'Bekas - Cukup',
+  "Bekas - Seperti Baru",
+  "Bekas - Sangat Baik",
+  "Bekas - Baik",
+  "Bekas - Cukup",
 ];
 
 export default function JualScreen() {
@@ -34,15 +37,18 @@ export default function JualScreen() {
 
   // Form states
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [name, setName] = useState<string>('');
-  const [price, setPrice] = useState<string>('');
-  const [category, setCategory] = useState<string>('');
-  const [condition, setCondition] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
+  const [name, setName] = useState<string>("");
+  const [price, setPrice] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [condition, setCondition] = useState<string>("");
+  const [location, setLocation] = useState<string>("");
+  const [productLocation, setProductLocation] =
+    useState<ProductLocation | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState<boolean>(false);
+  const [description, setDescription] = useState<string>("");
 
   // UI / Interaction states
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [isPickingImage, setIsPickingImage] = useState<boolean>(false);
 
   // Pastikan user sudah login sebelum mengakses menu Jual
@@ -54,14 +60,14 @@ export default function JualScreen() {
         const session = await getAuthSession();
         if (!session || !session.isLoggedIn) {
           if (isMounted) {
-            router.replace('/login');
+            router.replace("/login");
           }
           return;
         }
       } catch (error) {
-        console.error('[Jual] Gagal memeriksa sesi autentikasi:', error);
+        console.error("[Jual] Gagal memeriksa sesi autentikasi:", error);
         if (isMounted) {
-          router.replace('/login');
+          router.replace("/login");
         }
       } finally {
         if (isMounted) {
@@ -77,21 +83,48 @@ export default function JualScreen() {
     };
   }, []);
 
+  // Week 10 Task 01 & 03: GPS foreground dan reverse geocoding
+  const handleGetCurrentLocation = async () => {
+    if (isGettingLocation) return;
+    setIsGettingLocation(true);
+    setErrorMessage("");
+    try {
+      const result = await getCurrentProductLocation();
+      if (!result.success) {
+        Alert.alert("Lokasi Belum Tersedia", result.message);
+        return;
+      }
+
+      setProductLocation(result.data);
+      if (result.data.address) {
+        setLocation(result.data.address);
+      } else {
+        Alert.alert(
+          "Koordinat Diperoleh",
+          "GPS berhasil mendapatkan koordinat, tetapi alamat tidak dapat dikenali. Silakan isi kota/kabupaten secara manual.",
+        );
+      }
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
   // Handler: Mengambil foto langsung dengan kamera
   const handleTakePhoto = async () => {
     if (isPickingImage) return;
 
     try {
       setIsPickingImage(true);
-      setErrorMessage('');
+      setErrorMessage("");
 
       // Minta izin kamera ke sistem operasi HP
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestCameraPermissionsAsync();
 
       if (!permissionResult.granted) {
         Alert.alert(
-          'Izin Kamera Ditolak',
-          'Aplikasi membutuhkan izin kamera untuk mengambil foto barang preloved Anda. Silakan berikan izin di pengaturan perangkat.'
+          "Izin Kamera Ditolak",
+          "Aplikasi membutuhkan izin kamera untuk mengambil foto barang preloved Anda. Silakan berikan izin di pengaturan perangkat.",
         );
         return;
       }
@@ -106,10 +139,10 @@ export default function JualScreen() {
         setImageUri(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('[Jual] Error saat membuka kamera:', error);
+      console.error("[Jual] Error saat membuka kamera:", error);
       Alert.alert(
-        'Kamera Bermasalah',
-        'Tidak dapat membuka kamera pada perangkat ini. Pastikan perangkat memiliki modul kamera.'
+        "Kamera Bermasalah",
+        "Tidak dapat membuka kamera pada perangkat ini. Pastikan perangkat memiliki modul kamera.",
       );
     } finally {
       setIsPickingImage(false);
@@ -122,21 +155,22 @@ export default function JualScreen() {
 
     try {
       setIsPickingImage(true);
-      setErrorMessage('');
+      setErrorMessage("");
 
       // Minta izin akses galeri/media library
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permissionResult.granted) {
         Alert.alert(
-          'Izin Galeri Ditolak',
-          'Aplikasi membutuhkan izin galeri untuk memilih foto barang preloved Anda. Silakan berikan izin di pengaturan perangkat.'
+          "Izin Galeri Ditolak",
+          "Aplikasi membutuhkan izin galeri untuk memilih foto barang preloved Anda. Silakan berikan izin di pengaturan perangkat.",
         );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -146,8 +180,8 @@ export default function JualScreen() {
         setImageUri(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('[Jual] Error saat memilih foto dari galeri:', error);
-      Alert.alert('Galeri Bermasalah', 'Gagal memuat galeri foto perangkat.');
+      console.error("[Jual] Error saat memilih foto dari galeri:", error);
+      Alert.alert("Galeri Bermasalah", "Gagal memuat galeri foto perangkat.");
     } finally {
       setIsPickingImage(false);
     }
@@ -160,63 +194,66 @@ export default function JualScreen() {
 
   // Handler: Validasi form & Simpan (Tahap 1: Validasi Frontend Saja)
   const handleFormSubmit = () => {
-    setErrorMessage('');
+    setErrorMessage("");
 
     // Validasi field foto
     if (!imageUri) {
-      setErrorMessage('Foto barang wajib disertakan.');
-      Alert.alert('Perhatian', 'Foto barang wajib diambil atau dipilih dari galeri.');
+      setErrorMessage("Foto barang wajib disertakan.");
+      Alert.alert(
+        "Perhatian",
+        "Foto barang wajib diambil atau dipilih dari galeri.",
+      );
       return;
     }
 
     // Validasi nama barang
     if (!name.trim()) {
-      setErrorMessage('Nama barang wajib diisi.');
-      Alert.alert('Perhatian', 'Nama barang wajib diisi.');
+      setErrorMessage("Nama barang wajib diisi.");
+      Alert.alert("Perhatian", "Nama barang wajib diisi.");
       return;
     }
 
     // Validasi harga
-    const parsedPrice = parseInt(price.replace(/[^0-9]/g, ''), 10);
+    const parsedPrice = parseInt(price.replace(/[^0-9]/g, ""), 10);
     if (!price.trim() || isNaN(parsedPrice) || parsedPrice <= 0) {
-      setErrorMessage('Harga barang wajib diisi dengan nominal yang valid.');
-      Alert.alert('Perhatian', 'Harga barang harus berupa angka lebih dari 0.');
+      setErrorMessage("Harga barang wajib diisi dengan nominal yang valid.");
+      Alert.alert("Perhatian", "Harga barang harus berupa angka lebih dari 0.");
       return;
     }
 
     // Validasi kategori
     if (!category) {
-      setErrorMessage('Kategori barang wajib dipilih.');
-      Alert.alert('Perhatian', 'Silakan pilih salah satu kategori barang.');
+      setErrorMessage("Kategori barang wajib dipilih.");
+      Alert.alert("Perhatian", "Silakan pilih salah satu kategori barang.");
       return;
     }
 
     // Validasi kondisi
     if (!condition) {
-      setErrorMessage('Kondisi barang wajib dipilih.');
-      Alert.alert('Perhatian', 'Silakan pilih kondisi barang preloved Anda.');
+      setErrorMessage("Kondisi barang wajib dipilih.");
+      Alert.alert("Perhatian", "Silakan pilih kondisi barang preloved Anda.");
       return;
     }
 
     // Validasi lokasi
     if (!location.trim()) {
-      setErrorMessage('Lokasi barang wajib diisi.');
-      Alert.alert('Perhatian', 'Lokasi kota/kabupaten penjual wajib diisi.');
+      setErrorMessage("Lokasi barang wajib diisi.");
+      Alert.alert("Perhatian", "Lokasi kota/kabupaten penjual wajib diisi.");
       return;
     }
 
     // Validasi deskripsi
     if (!description.trim()) {
-      setErrorMessage('Deskripsi barang wajib diisi.');
-      Alert.alert('Perhatian', 'Deskripsi detail mengenai barang wajib diisi.');
+      setErrorMessage("Deskripsi barang wajib diisi.");
+      Alert.alert("Perhatian", "Deskripsi detail mengenai barang wajib diisi.");
       return;
     }
 
     // Tahap 1: Penanda bahwa penyimpanan backend belum dihubungkan
     Alert.alert(
-      'Validasi Berhasil',
+      "Validasi Berhasil",
       `Formulir Jual telah tervalidasi dengan lengkap!\n\n• Barang: ${name.trim()}\n• Harga: ${formatRupiah(parsedPrice)}\n• Kategori: ${category}\n• Kondisi: ${condition}\n• Lokasi: ${location.trim()}\n\nCatatan: Penyimpanan ke backend/database akan dihubungkan pada tahap integrasi berikutnya.`,
-      [{ text: 'Mengerti' }]
+      [{ text: "Mengerti" }],
     );
   };
 
@@ -228,7 +265,7 @@ export default function JualScreen() {
     );
   }
 
-  const numericPrice = parseInt(price.replace(/[^0-9]/g, ''), 10);
+  const numericPrice = parseInt(price.replace(/[^0-9]/g, ""), 10);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -239,7 +276,7 @@ export default function JualScreen() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           style={styles.scrollView}
@@ -277,13 +314,18 @@ export default function JualScreen() {
             ) : (
               <View style={styles.photoPlaceholderBox}>
                 <Text style={styles.photoPlaceholderIcon}>📷</Text>
-                <Text style={styles.photoPlaceholderText}>Belum ada foto yang dipilih</Text>
+                <Text style={styles.photoPlaceholderText}>
+                  Belum ada foto yang dipilih
+                </Text>
               </View>
             )}
 
             <View style={styles.photoButtonsRow}>
               <TouchableOpacity
-                style={[styles.photoActionButton, isPickingImage && styles.buttonDisabled]}
+                style={[
+                  styles.photoActionButton,
+                  isPickingImage && styles.buttonDisabled,
+                ]}
                 activeOpacity={0.8}
                 onPress={handleTakePhoto}
                 disabled={isPickingImage}
@@ -303,7 +345,9 @@ export default function JualScreen() {
                 disabled={isPickingImage}
               >
                 <Text style={styles.photoActionButtonIcon}>🖼️</Text>
-                <Text style={styles.photoActionButtonTextSecondary}>Pilih Galeri</Text>
+                <Text style={styles.photoActionButtonTextSecondary}>
+                  Pilih Galeri
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -331,7 +375,7 @@ export default function JualScreen() {
                 value={name}
                 onChangeText={(text) => {
                   setName(text);
-                  if (errorMessage) setErrorMessage('');
+                  if (errorMessage) setErrorMessage("");
                 }}
                 maxLength={80}
               />
@@ -355,9 +399,9 @@ export default function JualScreen() {
                 placeholderTextColor={COLORS.mutedText}
                 value={price}
                 onChangeText={(text) => {
-                  const cleaned = text.replace(/[^0-9]/g, '');
+                  const cleaned = text.replace(/[^0-9]/g, "");
                   setPrice(cleaned);
-                  if (errorMessage) setErrorMessage('');
+                  if (errorMessage) setErrorMessage("");
                 }}
                 keyboardType="numeric"
               />
@@ -385,7 +429,7 @@ export default function JualScreen() {
                       activeOpacity={0.7}
                       onPress={() => {
                         setCategory(cat.name);
-                        if (errorMessage) setErrorMessage('');
+                        if (errorMessage) setErrorMessage("");
                       }}
                     >
                       <Text style={styles.categoryChipEmoji}>{cat.icon}</Text>
@@ -421,7 +465,7 @@ export default function JualScreen() {
                       activeOpacity={0.7}
                       onPress={() => {
                         setCondition(cond);
-                        if (errorMessage) setErrorMessage('');
+                        if (errorMessage) setErrorMessage("");
                       }}
                     >
                       <Text
@@ -441,7 +485,8 @@ export default function JualScreen() {
             {/* Lokasi */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                Lokasi Kota / Kabupaten <Text style={styles.requiredStar}>*</Text>
+                Lokasi Kota / Kabupaten{" "}
+                <Text style={styles.requiredStar}>*</Text>
               </Text>
               <TextInput
                 style={styles.input}
@@ -450,9 +495,58 @@ export default function JualScreen() {
                 value={location}
                 onChangeText={(text) => {
                   setLocation(text);
-                  if (errorMessage) setErrorMessage('');
+                  // Jika alamat diubah manual, jangan tampilkan pin GPS lama seolah-olah masih cocok.
+                  setProductLocation(null);
+                  if (errorMessage) setErrorMessage("");
                 }}
               />
+              <TouchableOpacity
+                style={[
+                  styles.locationButton,
+                  isGettingLocation && styles.buttonDisabled,
+                ]}
+                activeOpacity={0.8}
+                onPress={handleGetCurrentLocation}
+                disabled={isGettingLocation}
+              >
+                {isGettingLocation ? (
+                  <ActivityIndicator color={COLORS.primaryGreen} />
+                ) : (
+                  <Text style={styles.locationButtonText}>
+                    ◎ Gunakan Lokasi Saat Ini
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.locationHint}>
+                Lokasi hanya diakses saat kamu menekan tombol. Kamu juga bisa
+                mengisi kota/kabupaten secara manual.
+              </Text>
+              {productLocation ? (
+                <View style={styles.locationResult}>
+                  <Text style={styles.locationResultTitle}>
+                    Lokasi GPS berhasil diperoleh
+                  </Text>
+                  <Text style={styles.locationCoordinateText}>
+                    Latitude: {productLocation.latitude.toFixed(6)}
+                  </Text>
+                  <Text style={styles.locationCoordinateText}>
+                    Longitude: {productLocation.longitude.toFixed(6)}
+                  </Text>
+                  <Text style={styles.locationCoordinateText}>
+                    Akurasi:{" "}
+                    {productLocation.accuracy !== null
+                      ? `±${Math.round(productLocation.accuracy)} meter`
+                      : "Tidak tersedia"}
+                  </Text>
+                  <LocationMap
+                    coordinate={{
+                      latitude: productLocation.latitude,
+                      longitude: productLocation.longitude,
+                    }}
+                    accuracy={productLocation.accuracy}
+                  />
+                </View>
+              ) : null}
             </View>
 
             {/* Deskripsi */}
@@ -467,7 +561,7 @@ export default function JualScreen() {
                 value={description}
                 onChangeText={(text) => {
                   setDescription(text);
-                  if (errorMessage) setErrorMessage('');
+                  if (errorMessage) setErrorMessage("");
                 }}
                 multiline
                 numberOfLines={4}
@@ -487,7 +581,8 @@ export default function JualScreen() {
             </TouchableOpacity>
 
             <Text style={styles.submitNote}>
-              Pastikan informasi barang dan kondisi telah sesuai dengan barang asli
+              Pastikan informasi barang dan kondisi telah sesuai dengan barang
+              asli
             </Text>
           </View>
         </ScrollView>
@@ -506,8 +601,8 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: COLORS.background,
   },
   header: {
@@ -516,12 +611,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.darkText,
   },
   keyboardView: {
@@ -545,7 +640,7 @@ const styles = StyleSheet.create({
     gap: 12,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.04,
         shadowRadius: 2,
@@ -557,7 +652,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.darkText,
   },
   sectionSubtitle: {
@@ -572,9 +667,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1.5,
     borderColor: COLORS.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 6,
   },
   photoPlaceholderIcon: {
@@ -583,31 +678,31 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     fontSize: 13,
     color: COLORS.mutedText,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   previewContainer: {
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
     gap: 10,
   },
   previewImage: {
-    width: '100%',
+    width: "100%",
     height: 200,
     borderRadius: 10,
-    resizeMode: 'cover',
-    backgroundColor: '#EAEAEA',
+    resizeMode: "cover",
+    backgroundColor: "#EAEAEA",
   },
   previewActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
-    width: '100%',
+    width: "100%",
   },
   smallButton: {
     flex: 1,
     paddingVertical: 9,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   changeButton: {
     backgroundColor: COLORS.lightGreen,
@@ -616,29 +711,29 @@ const styles = StyleSheet.create({
   },
   smallButtonText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primaryGreen,
   },
   removeButton: {
-    backgroundColor: '#FDEDEC',
+    backgroundColor: "#FDEDEC",
     borderWidth: 1,
     borderColor: COLORS.accentRed,
   },
   removeButtonText: {
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.accentRed,
   },
   photoButtonsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
     marginTop: 4,
   },
   photoActionButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.primaryGreen,
     paddingVertical: 12,
     borderRadius: 10,
@@ -673,19 +768,19 @@ const styles = StyleSheet.create({
   },
   photoActionButtonText: {
     fontSize: 13.5,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.white,
   },
   photoActionButtonTextSecondary: {
     fontSize: 13.5,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.primaryGreen,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   errorContainer: {
-    backgroundColor: '#FDEDEC',
+    backgroundColor: "#FDEDEC",
     borderWidth: 1,
     borderColor: COLORS.accentRed,
     borderRadius: 10,
@@ -695,7 +790,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.accentRed,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 18,
   },
   inputGroup: {
@@ -704,17 +799,17 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.darkText,
   },
   labelWithPreview: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   priceFormattedText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.primaryGreen,
   },
   requiredStar: {
@@ -730,6 +825,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.darkText,
   },
+  locationButton: {
+    minHeight: 44,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: COLORS.primaryGreen,
+    backgroundColor: COLORS.lightGreen,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    marginTop: 9,
+  },
+  locationButtonText: {
+    color: COLORS.primaryGreen,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  locationHint: { color: COLORS.mutedText, fontSize: 11.5, lineHeight: 17 },
+  locationResult: {
+    gap: 6,
+    padding: 10,
+    borderRadius: 9,
+    backgroundColor: COLORS.background,
+  },
+  locationResultTitle: {
+    color: COLORS.primaryGreen,
+    fontWeight: "700",
+    fontSize: 12.5,
+  },
+  locationCoordinateText: { color: COLORS.darkText, fontSize: 11.5 },
   textArea: {
     height: 96,
     paddingTop: 12,
@@ -740,8 +864,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -761,15 +885,15 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 12.5,
     color: COLORS.darkText,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   categoryChipTextSelected: {
     color: COLORS.primaryGreen,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   conditionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   conditionChip: {
@@ -788,11 +912,11 @@ const styles = StyleSheet.create({
   conditionChipText: {
     fontSize: 12,
     color: COLORS.darkText,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   conditionChipTextSelected: {
     color: COLORS.primaryGreen,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   submitSection: {
     marginTop: 6,
@@ -802,8 +926,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryGreen,
     borderRadius: 10,
     height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     ...Platform.select({
       ios: {
         shadowColor: COLORS.primaryGreen,
@@ -819,12 +943,12 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: COLORS.white,
     fontSize: 15.5,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   submitNote: {
     fontSize: 11.5,
     color: COLORS.mutedText,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 16,
   },
 });
